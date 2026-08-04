@@ -1,0 +1,19 @@
+{
+  "name": "Registro ACP Escolar",
+  "short_name": "ACP Escolar",
+  "description": "Observar · Comprender · Prevenir · Apoyar",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7f3",
+  "theme_color": "#2f6658",
+  "lang": "es-ES",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -471,3 +471,30 @@ body{padding-bottom:88px}
 .detail-meta-grid,.detail-metrics{display:grid;grid-template-columns:1fr;gap:.55rem;margin:.7rem 0}.detail-metric{padding:.75rem .85rem;border:1px solid var(--border);background:#fff;border-radius:14px}.detail-metric span{display:block;color:var(--muted);font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em}.detail-metric strong{display:block;margin-top:.12rem}.risk-metric{border-color:#efc3c3;background:#fff2f2;color:#922c2c}
 .detail-section{margin:.75rem 0;padding:1rem;border:1px solid var(--border);border-radius:18px;background:#fff}.detail-section h3{margin:0 0 .7rem;color:var(--brand)}.abc-block{padding:.65rem 0;border-bottom:1px solid #e6eeea}.abc-block:last-child{border-bottom:0}.detail-note{padding:.65rem .75rem;border-radius:12px;background:#f6faf8;color:#314a42}.hypothesis-card{background:#fff8e9;border-color:#ecd3a2}.hypothesis-card h3{color:#865c18}.inclusion-list{display:grid;gap:.45rem}.inclusion-list>div{display:flex;justify-content:space-between;gap:1rem;padding:.55rem .65rem;background:#f7faf9;border-radius:10px}.inclusion-list span{font-size:.86rem}.inclusion-list strong{white-space:nowrap;color:var(--brand)}.detail-privacy{margin:.8rem 0;padding:.8rem 1rem;border-radius:14px;background:var(--brand-soft);color:#34584c;font-size:.85rem}
 @media(min-width:700px){.detail-meta-grid{grid-template-columns:repeat(3,1fr)}.detail-metrics{grid-template-columns:repeat(4,1fr)}}
+
+.header-actions{display:flex;gap:.45rem;align-items:center}
+.install-card{
+  display:grid;grid-template-columns:auto 1fr auto;gap:.8rem;align-items:center;
+  background:linear-gradient(135deg,#edf7f3,#f8fbfa);
+  border:1px solid #cfe3da;border-radius:20px;padding:1rem;margin-bottom:1rem;
+  box-shadow:var(--shadow-sm)
+}
+.install-icon{
+  width:48px;height:48px;border-radius:15px;display:grid;place-items:center;
+  background:var(--brand);color:#fff;font-size:1.35rem;font-weight:900
+}
+.install-card h3{margin:0 0 .15rem;font-size:1rem}
+.install-card p{margin:0;color:var(--muted);font-size:.88rem}
+.install-card button{white-space:nowrap}
+.local-badge{
+  display:inline-flex;align-items:center;gap:.4rem;
+  padding:.35rem .6rem;border-radius:999px;background:#edf6f2;
+  color:#315d4e;font-size:.8rem;font-weight:800;border:1px solid #d3e6de
+}
+.install-steps{padding-left:1.2rem}
+.install-steps li{margin:.5rem 0}
+@media(max-width:560px){
+  #headerInstallBtn{display:none}
+  .install-card{grid-template-columns:auto 1fr}
+  .install-card button{grid-column:1/-1;width:100%}
+}

@@ -3,6 +3,7 @@
 const DB_NAME="registro_acp_escolar_db", DB_VERSION=1, STORE="registros";
 const PREF="registro_acp_escolar_prefs";
 let db=null, currentEditId=null, pendingReviewAction=null, listMode="all", unlocked=false;
+let deferredInstallPrompt=null;
 
 const OPT={
 contexto:["aula ordinaria","aula de apoyo/específica","patio","pasillo","comedor","transporte","entrada/salida","Educación Física","recreo","cambio de clase","actividad grupal","actividad individual","evaluación/examen","otro"],
@@ -52,6 +53,41 @@ async function allRecords(){return new Promise((res,rej)=>{const r=db.transactio
 async function deleteRecord(id){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 async function clearRecords(){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).clear();tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 
+
+function platformInfo(){
+  const ua=navigator.userAgent||"";
+  const isIOS=/iPad|iPhone|iPod/.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+  const isAndroid=/Android/i.test(ua);
+  const standalone=window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone===true;
+  return {isIOS,isAndroid,standalone};
+}
+function installHelpText(){
+  const {isIOS,isAndroid,standalone}=platformInfo();
+  if(standalone) return `<p><strong>Registro ACP Escolar ya está instalada</strong> en este dispositivo.</p><p class="hint">Los registros siguen almacenándose localmente en este dispositivo.</p>`;
+  if(isIOS) return `<p>En iPhone/iPad, Apple no muestra un botón automático de instalación. Haz esto:</p><ol class="install-steps"><li>Abre esta página en <strong>Safari</strong>.</li><li>Pulsa el botón <strong>Compartir</strong> (cuadrado con flecha hacia arriba).</li><li>Selecciona <strong>Añadir a pantalla de inicio</strong>.</li><li>Confirma con <strong>Añadir</strong>.</li></ol><p class="hint">Después se abrirá como una app independiente.</p>`;
+  if(isAndroid) return `<p>En Android puedes instalarla desde Chrome.</p><ol class="install-steps"><li>Pulsa <strong>Instalar ahora</strong> si aparece disponible.</li><li>Si no, abre el menú ⋮ de Chrome y selecciona <strong>Instalar aplicación</strong> o <strong>Añadir a pantalla de inicio</strong>.</li></ol>`;
+  return `<p>Puedes instalar Registro ACP Escolar como aplicación si tu navegador lo permite.</p><p class="hint">En Chrome/Edge, usa “Instalar ahora” o el icono de instalación de la barra de direcciones.</p>`;
+}
+async function openInstallDialog(){
+  const d=document.querySelector("#installDialog");
+  const body=document.querySelector("#installDialogBody");
+  const btn=document.querySelector("#installNowBtn");
+  if(!d||!body||!btn)return;
+  body.innerHTML=installHelpText();
+  const {standalone,isIOS}=platformInfo();
+  btn.classList.toggle("hidden",standalone||isIOS||!deferredInstallPrompt);
+  d.showModal();
+}
+async function triggerInstall(){
+  if(!deferredInstallPrompt){openInstallDialog();return}
+  deferredInstallPrompt.prompt();
+  const choice=await deferredInstallPrompt.userChoice.catch(()=>null);
+  deferredInstallPrompt=null;
+  if(choice?.outcome==="accepted")toast("Instalación iniciada");
+  else toast("Instalación no realizada");
+  document.querySelector("#installDialog")?.close();
+}
+
 function show(id){
  document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
  const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();
@@ -85,12 +121,16 @@ async function renderHome(){
  document.querySelector("#screen-home").innerHTML=`<div class="card hero"><div class="hero-copy"><span class="app-kicker">ACP · Registro educativo</span><h2>Observar para comprender y apoyar</h2><p>Registra hechos, revisa patrones y planifica apoyos desde una mirada centrada en la persona.</p><span class="privacy-pill">Datos guardados en este dispositivo</span></div>
  <div class="disclaimer"><p><strong>Esta herramienta facilita el registro educativo dentro de procesos de Apoyo Conductual Positivo. No realiza diagnósticos ni sustituye la valoración profesional.</strong></p>
  <p>No sustituye la evaluación psicológica, médica, psiquiátrica, pedagógica ni profesional.</p><p>No sustituye los protocolos del centro, los procedimientos establecidos de protección o seguridad ni las actuaciones de emergencia.</p></div>${note}</div>
+ <div class="install-card"><div class="install-icon">⬇</div><div><h3>Instalar esta app</h3><p>Acceso rápido, funcionamiento offline y datos guardados en este dispositivo.</p></div><button id="homeInstallBtn" class="secondary">Instalar / Cómo instalar</button></div>
+ <div class="local-badge">● Sin cuenta · Sin nube de registros · Almacenamiento local</div>
+ <div style="height:.75rem"></div>
  <div class="grid-buttons">
  ${[
  ["Nuevo registro","Crear un registro ABC ampliado","form"],["Registro rápido","Registrar lo esencial en una sola pantalla","quick"],["Registros de hoy","Consultar y gestionar los registros de hoy","today"],["Todos los registros","Buscar, filtrar, editar y duplicar","all"],["Informe / Exportar","PDF, CSV o preparación de correo","report"],["Estadísticas","Patrones descriptivos calculados localmente","stats"],["Ayuda","Conceptos y ejemplos observables","help"],["Privacidad y datos","Arquitectura y flujo local de datos","privacy"],["Acerca de / Licencia / Uso ético","Autoría, licencia y limitaciones","about"],["Configuración","PIN y recordatorio de revisión","settings"]
  ].map(([a,b,c])=>`<button data-nav="${c}"><strong>${a}</strong><span>${b}</span></button>`).join("")}</div>
  <div class="card"><h2>Cómo usarla en 60 segundos</h2><div class="flow">${["Observar","↓","Registrar hechos","↓","Revisar patrones","↓","Formular hipótesis","↓","Planificar apoyos","↓","Revisar en equipo"].map(x=>x==="↓"?"<b>↓</b>":`<span>${x}</span>`).join("")}</div></div>`;
  document.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>navigate(b.dataset.nav));
+ document.querySelector("#homeInstallBtn")?.addEventListener("click",openInstallDialog);
 }
 function formTemplate(d={}){
  const inc=d.inclusion||{};
@@ -391,6 +431,10 @@ async function navigate(dest){
 }
 document.addEventListener("DOMContentLoaded",async()=>{
  db=await openDB();
+ window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;});
+ window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;toast("Registro ACP Escolar instalada");});
+ document.querySelector("#headerInstallBtn")?.addEventListener("click",openInstallDialog);
+ document.querySelector("#installNowBtn")?.addEventListener("click",e=>{e.preventDefault();triggerInstall();});
  document.querySelector("#menuHome").onclick=()=>{renderHome();show("home")};
  document.querySelectorAll("[data-bottom-nav]").forEach(b=>b.addEventListener("click",()=>{const d=b.dataset.bottomNav;if(d==="home"){renderHome();show("home")}else navigate(d)}));
  document.querySelector("#reviewProceed").onclick=async e=>{if(!document.querySelector("#reviewConfirm").checked){e.preventDefault();return}const fn=pendingReviewAction;pendingReviewAction=null;setTimeout(async()=>{try{await fn?.()}catch(err){if(err.message!=="none"){console.error("Fallo de exportación",err?.name||"Error");alert("No se ha podido abrir el archivo para guardarlo o compartirlo. Cierra y vuelve a abrir la app; si persiste, revisaremos la integración nativa.")}}},0)};

@@ -1005,3 +1005,46 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  body{padding-bottom:94px!important}
  .bottom-nav{display:grid!important;position:fixed!important;bottom:0!important;left:50%!important;transform:translateX(-50%)!important;width:min(760px,calc(100% - 2rem))!important}
 }
+
+/* V14 final polish */
+.version-chip{display:none!important}
+.how-use{margin:.45rem 0 .7rem!important}
+.how-use strong{font-size:.92rem!important}
+.hero h2{font-size:clamp(1.35rem,5vw,2rem)!important}
+@media(max-width:599px){
+  .hero{padding:.85rem!important}
+  .hero h2{font-size:1.35rem!important}
+}
+
+/* V15 — home consistent in Safari/Chrome/iOS/Android */
+#screen-home .flow,
+#screen-home .mini-flow,
+#screen-home .install-steps{
+  display:none!important;
+}
+#screen-home .how-use{
+  display:grid!important;
+  grid-template-columns:auto 1fr auto!important;
+  align-items:center!important;
+  gap:.65rem!important;
+  width:100%!important;
+  min-height:56px!important;
+  padding:.65rem .8rem!important;
+  border-radius:24px!important;
+  background:#fff!important;
+  color:var(--text)!important;
+  border:1px solid var(--border)!important;
+  box-shadow:none!important;
+  text-align:left!important;
+}
+#screen-home .how-use .how-icon{
+  width:30px!important;height:30px!important;border-radius:50%!important;
+  display:grid!important;place-items:center!important;
+  background:#e9f3ef!important;color:#2e6655!important;font-weight:950!important;
+}
+#screen-home .how-use .chev{
+  font-size:1.45rem!important;color:var(--muted)!important;
+}
+#screen-home .how-use strong{
+  font-size:.93rem!important;
+}

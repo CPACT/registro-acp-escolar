@@ -4,6 +4,7 @@ const DB_NAME="registro_acp_escolar_db", DB_VERSION=2, STORE="registros", DOC_ST
 const PREF="registro_acp_escolar_prefs";
 let db=null, currentEditId=null, pendingReviewAction=null, listMode="all", unlocked=false;
 let deferredInstallPrompt=null;
+const PWA_FLAG="registro_acp_pwa_instalada";
 
 const OPT={
 contexto:["aula ordinaria","aula de apoyo/específica","patio","pasillo","comedor","transporte","entrada/salida","Educación Física","recreo","cambio de clase","actividad grupal","actividad individual","evaluación/examen","otro"],
@@ -85,6 +86,12 @@ function refreshInstallUI(){
   const homeBtn=document.querySelector("#homeInstallBtn");
   const card=homeBtn?.closest(".install-card");
   if(info.standalone){
+    try{localStorage.setItem(PWA_FLAG,"1")}catch{}
+  }
+  let remembered=false;
+  try{remembered=localStorage.getItem(PWA_FLAG)==="1"}catch{}
+  const hideInstall=info.standalone || remembered;
+  if(hideInstall){
     headerBtn?.classList.add("hidden");
     card?.classList.add("hidden");
     return;
@@ -262,6 +269,17 @@ async function renderCenterDocs(){
   list.querySelectorAll("[data-del-doc]").forEach(b=>b.onclick=async()=>{if(confirm("¿Eliminar este documento local?")){await deleteCenterDoc(b.dataset.delDoc);renderCenterDocs()}});
 }
 
+
+async function ensureHomeVisible(){
+  if(!prefs().accepted) return;
+  const home=document.querySelector("#screen-home");
+  const anyVisible=[...document.querySelectorAll(".screen")].some(s=>!s.classList.contains("hidden"));
+  if(!anyVisible || !home || home.innerHTML.trim()===""){
+    await renderHome();
+    show("home");
+  }
+}
+
 function show(id){
  document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
  const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el)},0);setTimeout(()=>bindHelpButtons(el),0);
@@ -297,15 +315,17 @@ async function renderHome(){
   el.innerHTML=`
     <div class="card hero">
       <div class="hero-copy">
-        <span class="app-kicker">ACP · Registro educativo</span><span class="version-chip">V13</span>
-        <h2>Registrar · Revisar · Apoyar</h2>
+        <span class="app-kicker">ACP · Registro educativo</span>
+        <h2>Observar · Comprender · Apoyar</h2>
         <span class="privacy-pill">Datos en este dispositivo</span>
       </div>
       ${note}
     </div>
 
-    <button id="howUseBtn" class="how-use" type="button">
-      <span class="how-icon">?</span><strong>Cómo usarla en 60 segundos</strong><span class="chev">›</span>
+    <button id="howUseBtn" class="how-use" type="button" aria-haspopup="dialog">
+      <span class="how-icon">?</span>
+      <strong>Cómo funciona</strong>
+      <span class="chev" aria-hidden="true">›</span>
     </button>
 
     <div class="install-card">
@@ -337,7 +357,15 @@ async function renderHome(){
   el.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.nav)));
   el.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
   el.querySelector("#homeInstallBtn")?.addEventListener("click",openInstallHelp);
-  el.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo usarla en 60 segundos",`<div class="install-steps"><b>1</b><span><strong>Observa</strong> qué ocurre.</span><b>2</b><span><strong>Registra</strong> hechos observables.</span><b>3</b><span><strong>Revisa</strong> varios registros.</span><b>4</b><span><strong>Planifica apoyos</strong> y revísalos en equipo.</span></div><p class="hint">Las hipótesis son provisionales y no son diagnósticos.</p>`));
+  el.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo funciona",`
+    <div class="install-steps">
+      <b>1</b><span><strong>Observa</strong>.</span>
+      <b>2</b><span><strong>Registra hechos</strong>.</span>
+      <b>3</b><span><strong>Revisa patrones</strong>.</span>
+      <b>4</b><span><strong>Planifica apoyos</strong>.</span>
+    </div>
+    <p class="hint">Las hipótesis son provisionales y no son diagnósticos.</p>
+  `));
   refreshInstallUI();
   bindHelpButtons(el);
 }
@@ -763,7 +791,9 @@ async function navigate(dest){
 document.addEventListener("DOMContentLoaded",async()=>{
  db=await openDB();
  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;});
- window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;toast("App instalada");refreshInstallUI();});
+ window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;localStorage.setItem(PWA_FLAG,"1");toast("App instalada");refreshInstallUI();});
+ window.addEventListener("pageshow",()=>{setTimeout(()=>ensureHomeVisible().catch(()=>{}),50)});
+ document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(()=>ensureHomeVisible().catch(()=>{}),50)});
  document.querySelector("#headerInstallBtn")?.addEventListener("click",openInstallHelp);
  document.querySelector("#floatingHelpBtn")?.addEventListener("click",()=>quickHelp("Ayuda rápida",`<div class="mini-flow"><b>1</b><span>Nuevo registro</span><b>2</b><span>Anota hechos observables</span><b>3</b><span>Revisa patrones</span><b>4</b><span>Planifica apoyos</span></div><p class="hint">Pulsa los símbolos ? para aclaraciones concretas.</p>`));
  document.querySelector("#conceptHelpBtn")?.addEventListener("click",()=>quickHelp("Conceptos clave",`<div class="help-menu"><p><b>Antecedente</b><br><span>Qué ocurrió justo antes.</span></p><p><b>Conducta observada</b><br><span>Qué se vio u oyó.</span></p><p><b>Consecuencia</b><br><span>Qué ocurrió después.</span></p><p><b>Hipótesis funcional</b><br><span>Explicación provisional, no diagnóstico.</span></p></div>`));
@@ -828,7 +858,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
    else navigator.serviceWorker.register("./sw.js").catch(()=>{});
  }
  try{
-   if(prefs().accepted){await renderHome();show("home")}
+   if(prefs().accepted){await renderHome();show("home");setTimeout(()=>ensureHomeVisible().catch(()=>{}),80)}
    else{renderConsent();show("consent")}
  }catch(err){
    console.error("Inicio",err);

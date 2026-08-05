@@ -1369,3 +1369,83 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   transition:transform .18s ease!important;
 }
 .collapsible-field.open .inline-chevron{transform:rotate(180deg)!important}
+
+/* V20h — Inicio simplificado + Nuevo registro totalmente desplegable */
+.home-utility-row.csv-only{
+  display:flex!important;
+  justify-content:center!important;
+  align-items:center!important;
+  max-width:620px!important;
+  margin:.7rem auto!important;
+}
+.home-utility-row.csv-only .utility-btn{
+  min-width:180px!important;
+  width:auto!important;
+  justify-content:center!important;
+}
+
+.collapsible-head{
+  justify-content:flex-start!important;
+  gap:.38rem!important;
+}
+.collapsible-head>span{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:.38rem!important;
+  min-width:0!important;
+}
+.collapsible-head>span h3{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:.3rem!important;
+  margin:0!important;
+}
+.collapsible-head>i{
+  margin-left:0!important;
+  flex:0 0 auto!important;
+  font-style:normal!important;
+  color:var(--muted)!important;
+}
+.collapsible-field.open>.collapsible-head>i{
+  transform:rotate(180deg)!important;
+}
+@media(max-width:560px){
+  .home-utility-row.csv-only .utility-btn{
+    width:min(82%,260px)!important;
+  }
+}
+
+/* V20i — accesibilidad y validación */
+.skip-link{
+  position:fixed;left:1rem;top:-80px;z-index:9999;padding:.7rem 1rem;
+  background:#fff;color:#173d32;border:2px solid #173d32;border-radius:12px;font-weight:900
+}
+.skip-link:focus{top:1rem}
+.sr-only{
+  position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;
+  overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important
+}
+:where(button,a,input,select,textarea,summary,[tabindex]):focus-visible{
+  outline:3px solid currentColor!important;outline-offset:3px!important
+}
+.field-error{
+  border-color:#b42318!important;box-shadow:0 0 0 3px rgba(180,35,24,.14)!important
+}
+[aria-invalid="true"]{border-color:#b42318!important}
+button,.chip,.bottom-nav button{min-height:44px}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+@media(prefers-contrast:more){
+  button,input,select,textarea,.card,.collapsible-field{border-width:2px!important}
+}
+
+/* V20j — datos de prueba + selector de código */
+.records-tools-row{
+  display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;
+  margin:.55rem 0;padding:.55rem .65rem;border-radius:18px;background:#f7faf9;border:1px solid var(--border)
+}
+.records-tools-row span{font-size:.76rem;color:var(--muted)}
+.demo-btn,.demo-delete{min-height:38px!important;padding:.4rem .65rem!important;border-radius:14px!important;font-size:.8rem!important}
+.code-choice{cursor:pointer}
+.code-choice input[type=radio]{cursor:pointer}

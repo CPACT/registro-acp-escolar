@@ -50,6 +50,41 @@ async function openDB(){
 }
 async function putRecord(rec){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).put(rec);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
 async function getRecord(id){return new Promise((res,rej)=>{const r=db.transaction(STORE).objectStore(STORE).get(id);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+
+
+async function deleteDemoRecords(){
+  const rs=await allRecords(), demos=rs.filter(r=>r.demo);
+  for(const r of demos) await deleteRecord(r.id);
+  return demos.length;
+}
+
+async function addDemoRecords(){
+  const codes=await usedCodes();
+  const code=nextMaskedCode(codes);
+  const now=new Date();
+  const samples=[
+    {mins:0,contexto:["Aula"],antecedente:["Cambio de actividad"],conducta:["Protesta verbal"],consecuencia:["Pausa breve"],riesgo:"sin riesgo",intensidad:2},
+    {mins:35,contexto:["Aula"],antecedente:["Tarea difícil"],conducta:["Se levanta del asiento"],consecuencia:["Apoyo visual"],riesgo:"sin riesgo",intensidad:2},
+    {mins:90,contexto:["Comedor"],antecedente:["Ruido ambiental"],conducta:["Se tapa los oídos"],consecuencia:["Cambio de espacio"],riesgo:"leve",intensidad:3}
+  ];
+  for(const s of samples){
+    const d=new Date(now.getTime()-s.mins*60000);
+    await putRecord({
+      id:uid(),demo:true,fechaHora:d.toISOString().slice(0,16),codigo:code,grupo:"DEMO",profesional:"",
+      contexto:s.contexto,contextoOtro:"",factores:[],factoresOtro:"",
+      antecedente:s.antecedente,antecedenteOtro:"",antecedenteDesc:"",
+      conducta:s.conducta,conductaOtro:"",conductaDesc:"",
+      duracionValor:20,duracionUnidad:"segundos",frecuencia:1,intensidad:s.intensidad,riesgo:s.riesgo,
+      consecuencia:s.consecuencia,consecuenciaOtro:"",consecuenciaDesc:"",
+      hipotesis:["Acceso a apoyo / regulación"],hipotesisOtro:"",
+      apoyos:["Apoyo visual"],apoyosOtro:"",apoyoValoracion:"Sí",
+      proxima:["Anticipar"],proximaOtro:"",proximaTexto:"",
+      inclusion:{},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),quick:false
+    });
+  }
+  return {code,count:samples.length};
+}
+
 async function allRecords(){return new Promise((res,rej)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>res(r.result.sort((a,b)=>(b.fechaHora||"").localeCompare(a.fechaHora||"")));r.onerror=()=>rej(r.error)})}
 async function deleteRecord(id){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 async function clearRecords(){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).clear();tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
@@ -295,6 +330,9 @@ function bindCollapsibleFieldsets(root){
     const head=box.querySelector(".collapsible-head");
     const body=box.querySelector(".collapsible-body");
     if(!head||!body||head.dataset.collapseBound==="1")return;
+    if(!body.id)body.id=`accordion-${Math.random().toString(36).slice(2,9)}`;
+    head.setAttribute("aria-controls",body.id);
+    body.setAttribute("role","region");
     head.dataset.collapseBound="1";
     head.addEventListener("click",e=>{
       // A contextual help control inside a section must not toggle the accordion.
@@ -332,6 +370,45 @@ function ensureScreenClose(id){
   btn.textContent="×";
   btn.addEventListener("click",async()=>{await renderHome();show("home")});
   host.prepend(btn);
+}
+
+
+function announceA11y(msg){
+  const live=document.querySelector("#a11yLive");
+  if(live){live.textContent="";setTimeout(()=>live.textContent=msg,20)}
+}
+function showRequiredFieldError(field,message){
+  if(!field)return false;
+  const section=field.closest(".collapsible-field");
+  if(section){
+    section.classList.add("open");
+    section.querySelector(".collapsible-head")?.setAttribute("aria-expanded","true");
+  }
+  field.setAttribute("aria-invalid","true");
+  field.classList.add("field-error");
+  const msg=message||"Completa este campo obligatorio.";
+  toast(msg);announceA11y(msg);
+  setTimeout(()=>{
+    field.scrollIntoView({behavior:"smooth",block:"center"});
+    try{field.focus({preventScroll:true})}catch(e){field.focus()}
+  },80);
+  const clear=()=>{field.removeAttribute("aria-invalid");field.classList.remove("field-error");field.removeEventListener("input",clear);field.removeEventListener("change",clear)};
+  field.addEventListener("input",clear);field.addEventListener("change",clear);
+  return false;
+}
+function validateRequiredRecordFields(form){
+  if(!form)return true;
+  const code=form.querySelector('[name="codigo"]');
+  if(code && !String(code.value||"").trim()) return showRequiredFieldError(code,"Falta el código pseudónimo. Selecciona o genera uno antes de guardar.");
+  const required=[...form.querySelectorAll("[required]")];
+  for(const field of required){
+    if(field===code)continue;
+    if(!field.checkValidity()){
+      const label=field.closest("label")?.childNodes?.[0]?.textContent?.trim()||"campo obligatorio";
+      return showRequiredFieldError(field,`Revisa ${label}. Es obligatorio para guardar.`);
+    }
+  }
+  return true;
 }
 
 function show(id){
@@ -388,14 +465,15 @@ async function renderHome(){
       </button>
     </section>
 
-    <div class="home-utility-row">
+    <div class="home-utility-row csv-only">
       <button id="homeCsvImportBtn" class="utility-btn" type="button">↑ Importar CSV</button>
-      <button id="howUseBtn" class="utility-btn subtle" type="button"><span class="help-mini">?</span> Cómo se usa</button>
     </div>
 
     <div class="install-card compact-install">
       <div class="install-icon">＋</div>
-      <div><h3>Instalar app</h3><p>Acceso rápido desde este dispositivo.</p></div>
+      <div><section class="collapsible-field" data-section="hipotesis">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Instalar app</h3><p>Acceso rápido desde este dispositivo.</p></div>
       <button id="homeInstallBtn" class="secondary" type="button">Instalar app</button>
     </div>`;
 
@@ -403,10 +481,6 @@ async function renderHome(){
   el.querySelector("#homeReportsBtn")?.addEventListener("click",openReportsChooser);
   el.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
   el.querySelector("#homeInstallBtn")?.addEventListener("click",openInstallHelp);
-  el.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo se usa",`
-    <div class="install-steps"><b>1</b><span><strong>Observa</strong>.</span><b>2</b><span><strong>Registra hechos</strong>.</span><b>3</b><span><strong>Revisa patrones</strong>.</span><b>4</b><span><strong>Planifica apoyos</strong>.</span></div>
-    <p class="hint">Las hipótesis son provisionales y no son diagnósticos.</p>
-  `));
   refreshInstallUI();bindHelpButtons(el);
 }
 function formTemplate(d={}){
@@ -461,11 +535,14 @@ function formTemplate(d={}){
   <div class="collapsible-body">${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
  <label>Descripción adicional<textarea name="consecuenciaDesc">${esc(d.consecuenciaDesc||"")}</textarea></label><p class="hint">Qué ocurrió después.</p></div>
  <div class="card"></div>
-</section><h3>Hipótesis provisional <button type="button" class="help-dot" data-help-title="Hipótesis, no diagnóstico" data-help-body="Es una explicación provisional. Necesita varios registros y revisión en equipo.">?</button></h3><div class="warning"><strong>Hipótesis funcional provisional:</strong> requiere varios registros, análisis de patrones y revisión en equipo.</div>${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
+</section><h3>Hipótesis provisional <button type="button" class="help-dot" data-help-title="Hipótesis, no diagnóstico" data-help-body="Es una explicación provisional. Necesita varios registros y revisión en equipo.">?</button></h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body"><div class="warning"><strong>Hipótesis funcional provisional:</strong> requiere varios registros, análisis de patrones y revisión en equipo.</div>${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
  <p class="hint">Hipótesis provisional.</p></div>
  <div class="card"><section class="collapsible-field" data-section="apoyos">
   <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Apoyos aplicados ${helpButton("Apoyos","Registra los apoyos utilizados y si pareció que ayudaron. Esto no demuestra causalidad.")}</h3></span><i>⌄</i>
+    <span></div>
+</section><h3>Apoyos aplicados ${helpButton("Apoyos","Registra los apoyos utilizados y si pareció que ayudaron. Esto no demuestra causalidad.")}</h3></span><i>⌄</i>
   </button>
   <div class="collapsible-body">${chips("apoyos",OPT.apoyos,d.apoyos||[],"apoyosOtro",d.apoyosOtro||"")}
  <label>¿Pareció ayudar?<select name="apoyoValoracion"><option></option>${["Sí","Parcialmente","No","No valorable"].map(x=>`<option ${d.apoyoValoracion===x?"selected":""}>${x}</option>`).join("")}</select></label><p class="hint">No demuestra causalidad.</p></div>
@@ -567,6 +644,18 @@ async function renderList(mode="all"){
  bindRecordActions();
  document.querySelector("#deleteSelected").onclick=async()=>{const ids=[...document.querySelectorAll(".select-record:checked")].map(x=>x.value);if(!ids.length)return toast("Selecciona al menos un registro");if(confirm(`¿Eliminar ${ids.length} registro(s) seleccionado(s)?`)){for(const id of ids)await deleteRecord(id);toast("Registros eliminados");renderList(mode)}};
  document.querySelector("#deleteDemo").onclick=async()=>{const all=await allRecords(),d=all.filter(r=>r.demo);if(!d.length)return toast("No hay datos DEMO");if(confirm(`¿Eliminar ${d.length} registro(s) DEMO?`)){for(const r of d)await deleteRecord(r.id);toast("Datos DEMO eliminados");renderList(mode)}};
+ 
+ document.querySelector("#deleteDemoBtn")?.addEventListener("click",async()=>{
+   if(!confirm("¿Borrar todos los datos de prueba?"))return;
+   const n=await deleteDemoRecords();toast(`${n} registro(s) de prueba eliminados`);await renderList(listMode);
+ });
+ document.querySelector("#addDemoBtn")?.addEventListener("click",async()=>{
+   const ok=confirm("Se crearán registros ficticios solo para probar la aplicación. No corresponden a alumnado real.");
+   if(!ok)return;
+   const result=await addDemoRecords();
+   toast(`Datos de prueba añadidos: ${result.code}`);
+   await renderList(listMode);
+ });
  const visibleRecords=()=>[...document.querySelectorAll("#listWrap [data-id]")].map(el=>el.dataset.id).filter(Boolean);
  const currentVisibleRecords=async()=>{
    const ids=visibleRecords();
@@ -1107,6 +1196,16 @@ async function navigate(dest){
 document.addEventListener("DOMContentLoaded",async()=>{
  db=await openDB();
 
+ document.addEventListener("submit",e=>{
+   const form=e.target;
+   if(!(form instanceof HTMLFormElement))return;
+   if(!form.querySelector('[name="codigo"]'))return;
+   if(!validateRequiredRecordFields(form)){
+     e.preventDefault();e.stopImmediatePropagation();
+   }
+ },true);
+
+
  const gear=document.querySelector("#headerSettingsBtn"), menu=document.querySelector("#settingsMenu");
  gear?.addEventListener("click",e=>{
    e.stopPropagation();
@@ -1138,6 +1237,19 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
  
  const codeDialog=document.querySelector("#codeManagerDialog");
+
+ const newCodeCard=document.querySelector("#newCodeChoice");
+ newCodeCard?.addEventListener("click",e=>{
+   if(e.target.closest("input,button,select"))return;
+   const r=codeDialog?.querySelector('input[name="codeChoice"][value="new"]');
+   if(r){r.checked=true;r.dispatchEvent(new Event("change",{bubbles:true}))}
+ });
+ codeDialog?.querySelectorAll(".code-choice").forEach(card=>card.addEventListener("click",e=>{
+   if(e.target.closest("select,input[type=text],button"))return;
+   const r=card.querySelector('input[name="codeChoice"]');
+   if(r){r.checked=true;r.dispatchEvent(new Event("change",{bubbles:true}))}
+ }));
+
  const codeSave=document.querySelector("#saveCodeChoiceBtn");
  const codeExisting=document.querySelector("#existingCodeSelect");
  const codeCustom=document.querySelector("#customCodeInput");
@@ -1146,7 +1258,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
  async function refreshCodeChoiceState(){
    const choice=codeDialog?.querySelector('input[name="codeChoice"]:checked')?.value;
    let valid=false;
-   if(choice==="new") valid=true;
+   if(choice==="new") valid=!!document.querySelector("#newCodePreview")?.textContent?.trim() && document.querySelector("#newCodePreview")?.textContent?.trim()!=="—";
    if(choice==="existing") valid=!!codeExisting?.value;
    if(choice==="custom"){
      const result=validateCustomCode(codeCustom?.value||"",await usedCodes());
@@ -1176,7 +1288,10 @@ document.addEventListener("DOMContentLoaded",async()=>{
    const target=currentCodeTarget();
    if(!choice||!target)return;
    let code="";
-   if(choice==="new") code=document.querySelector("#newCodePreview")?.textContent?.trim()||"";
+   if(choice==="new"){
+     code=document.querySelector("#newCodePreview")?.textContent?.trim()||"";
+     if(!code||code==="—"){const codes=await usedCodes();code=nextMaskedCode(codes)}
+   }
    if(choice==="existing") code=codeExisting?.value||"";
    if(choice==="custom"){
      const result=validateCustomCode(codeCustom?.value||"",await usedCodes());

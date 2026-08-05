@@ -56,27 +56,29 @@ async function clearRecords(){return new Promise((res,rej)=>{const tx=db.transac
 
 
 
+
+
+
 function browserInstallInfo(){
   const ua=navigator.userAgent||"";
   const ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
   const android=/Android/i.test(ua);
-  const crios=/CriOS/i.test(ua);
+  const chromeIOS=/CriOS/i.test(ua);
   const firefoxIOS=/FxiOS/i.test(ua);
   const edgeIOS=/EdgiOS/i.test(ua);
-  const safari=ios && /Safari/i.test(ua) && !crios && !firefoxIOS && !edgeIOS;
-  return {ios,android,crios,safari};
+  const safariIOS=ios&&!chromeIOS&&!firefoxIOS&&!edgeIOS;
+  return {ios,android,chromeIOS,safariIOS};
 }
 function openInstallHelp(){
   const b=browserInstallInfo();
-  if(b.ios && b.crios){
-    quickHelp("Añadir al iPhone",`<div class="install-steps"><b>1</b><span>Pulsa <strong>Compartir</strong> en Chrome.</span><b>2</b><span>Elige <strong>Añadir a pantalla de inicio</strong>.</span><b>3</b><span>Pulsa <strong>Añadir</strong>.</span></div><p class="hint">Después se abrirá desde su propio icono.</p>`);
-  }else if(b.ios){
-    quickHelp("Añadir al iPhone",`<div class="install-steps"><b>1</b><span>Pulsa <strong>Compartir</strong>.</span><b>2</b><span>Elige <strong>Añadir a pantalla de inicio</strong>.</span><b>3</b><span>Pulsa <strong>Añadir</strong>.</span></div><p class="hint">Después se abrirá desde su propio icono.</p>`);
-  }else{
-    quickHelp("Instalar app",`<p>Usa <strong>Instalar app</strong> o la opción de instalación del menú de tu navegador.</p>`);
+  if(b.ios){
+    const browser=b.chromeIOS?"Chrome":"Safari";
+    quickHelp("Añadir al iPhone",`<div class="install-steps"><b>1</b><span>Abre esta página en <strong>${browser}</strong>.</span><b>2</b><span>Pulsa <strong>Compartir</strong> ⬆️.</span><b>3</b><span>Elige <strong>Añadir a pantalla de inicio</strong>.</span><b>4</b><span>Pulsa <strong>Añadir</strong>.</span></div><p class="hint">Después se abrirá desde su propio icono.</p>`);
+    return;
   }
+  if(deferredInstallPrompt){triggerInstall();return}
+  quickHelp("Instalar app",`<p>Usa la opción <strong>Instalar aplicación</strong> o <strong>Añadir a pantalla de inicio</strong> de tu navegador.</p>`);
 }
-
 function refreshInstallUI(){
   const info=platformInfo(), b=browserInstallInfo();
   const headerBtn=document.querySelector("#headerInstallBtn");
@@ -85,13 +87,13 @@ function refreshInstallUI(){
   if(info.standalone){
     headerBtn?.classList.add("hidden");
     card?.classList.add("hidden");
-  }else{
-    headerBtn?.classList.remove("hidden");
-    card?.classList.remove("hidden");
-    const label=b.ios?"Añadir al iPhone":"Instalar app";
-    if(headerBtn) headerBtn.textContent=label;
-    if(homeBtn) homeBtn.textContent=label;
+    return;
   }
+  headerBtn?.classList.remove("hidden");
+  card?.classList.remove("hidden");
+  const label=b.ios?"Añadir al iPhone":"Instalar app";
+  if(headerBtn) headerBtn.textContent=label;
+  if(homeBtn) homeBtn.textContent=label;
 }
 
 function platformInfo(){
@@ -153,6 +155,17 @@ function bindHelpButtons(root=document){
 }
 
 
+
+function validateCustomCode(v,existing=[]){
+  const code=String(v||"").trim().toUpperCase();
+  const problems=[];
+  if(!/^[A-Z0-9-]{3,14}$/.test(code)) problems.push("usa solo letras, números y guion (3–14 caracteres)");
+  if(existing.some(x=>String(x).toUpperCase()===code)) problems.push("ese código ya existe");
+  if(/\b\d{8}[A-Z]\b/.test(code)) problems.push("parece un identificador personal");
+  if(/^[A-ZÁÉÍÓÚÑ]{2,4}$/.test(code)) problems.push("evita iniciales personales");
+  return {code,problems};
+}
+
 function normalizePrefix(v){
   return String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
 }
@@ -207,12 +220,23 @@ function probableIdentifiers(text){
 }
 function attachPrivacyScanner(root=document){
   if(!root)return;
-  root.querySelectorAll("textarea,input[type=text]").forEach(el=>{
-    if(el.name==="codigo"||el.readOnly||el.dataset.noScan==="1") return;
+  const selector='textarea,input[type="text"]:not([readonly])';
+  root.querySelectorAll(selector).forEach(el=>{
+    if(el.dataset.scanBound==="1")return;
+    el.dataset.scanBound="1";
     let box=el.parentElement?.querySelector(".privacy-scan");
     if(!box){box=document.createElement("div");box.className="privacy-scan hidden";box.setAttribute("role","alert");el.insertAdjacentElement("afterend",box)}
-    const scan=()=>{const hits=probableIdentifiers(el.value);if(hits.length){box.classList.remove("hidden");box.innerHTML=`⚠ Revisa: ${esc(hits.join(", "))}. Puede ser correcto, pero evita datos identificativos innecesarios.`;el.classList.add("privacy-flag")}else{box.classList.add("hidden");box.textContent="";el.classList.remove("privacy-flag")}};
-    el.addEventListener("input",scan);scan();
+    const scan=()=>{
+      const hits=probableIdentifiers(el.value);
+      if(hits.length){
+        box.classList.remove("hidden");
+        box.innerHTML=`⚠ Revisa: ${esc(hits.join(", "))}. Puede ser correcto, pero confirma que no estás introduciendo datos identificativos innecesarios.`;
+        el.classList.add("privacy-flag");
+      }else{
+        box.classList.add("hidden");box.textContent="";el.classList.remove("privacy-flag");
+      }
+    };
+    el.addEventListener("input",scan);el.addEventListener("blur",scan);scan();
   });
 }
 async function putCenterDoc(file){
@@ -240,7 +264,7 @@ async function renderCenterDocs(){
 
 function show(id){
  document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
- const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>bindHelpButtons(el),0);
+ const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el)},0);setTimeout(()=>bindHelpButtons(el),0);
 }
 function requirePin(next){
  const p=prefs(); if(!p.pinEnabled||unlocked){next();return}
@@ -267,25 +291,55 @@ function renderConsent(){
  document.querySelector("#continueConsent").addEventListener("click",()=>{savePrefs({accepted:true,acceptedAt:new Date().toISOString()});renderHome();show("home")})
 }
 async function renderHome(){
- const rs=await allRecords(), old=oldCount(rs); const note=old?`<div class="warning"><strong>Revisión de datos:</strong> Existen ${old} registro(s) antiguos en este dispositivo. Revisa si sigue siendo necesario conservarlos.</div>`:"";
- document.querySelector("#screen-home").innerHTML=`<div class="card hero"><div class="hero-copy"><span class="app-kicker">ACP · Registro educativo</span><span class="version-chip">V12</span><h2>Registrar · Revisar · Apoyar</h2><p>Registra y revisa.</p><span class="privacy-pill">Datos en este dispositivo</span></div>
- <div class="disclaimer"><p><strong>Uso educativo.</strong></p>
- </div>${note}</div>
- <div class="install-card"><div class="install-icon">⬇</div><div><h3>Instalar esta app</h3><p>Abrir como app.</p></div><button id="homeInstallBtn" class="secondary">Instalar app</button></div>
- <div class="local-badge">● Datos en este dispositivo</div>
- <div style="height:.75rem"></div>
- <div class="grid-buttons">
- ${[
- ["Nuevo registro","Nuevo registro","form"],["Importar CSV","Importar registros desde un archivo","importcsv"],["Registro rápido","Registrar lo esencial en una sola pantalla","quick"],["Registros de hoy","Ver registros de hoy","today"],["Todos los registros","Buscar y editar","all"],["Informe / Exportar","PDF, CSV o preparación de correo","report"],["Estadísticas","Estadísticas","stats"],["Ayuda","Ayuda","help"],["Privacidad y datos","Privacidad","privacy"],["Acerca de / Licencia / Uso ético","Autoría, licencia y limitaciones","about"],["Configuración","Configuración","settings"]
- ].map(([a,b,c])=>`<button data-nav="${c}"><strong>${a}</strong><span>${b}</span></button>`).join("")}</div>
- <div class="card"><h2>Cómo usarla en 60 segundos</h2><div class="flow">${["Observar","↓","Registrar hechos","↓","Revisar patrones","↓","Formular hipótesis","↓","Planificar apoyos","↓","Revisar en equipo"].map(x=>x==="↓"?"<b>↓</b>":`<span>${x}</span>`).join("")}</div></div>`;
- document.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>navigate(b.dataset.nav));
- document.querySelector("#homeInstallBtn")?.addEventListener("click",()=>{const b=browserInstallInfo();if(b.ios)openInstallHelp();else if(deferredInstallPrompt)triggerInstall();else openInstallHelp();});
- refreshInstallUI();
- document.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
- document.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo usarla en 60 segundos",`<div class="install-steps"><b>1</b><span><strong>Observa</strong> qué ocurre.</span><b>2</b><span><strong>Registra</strong> hechos, no interpretaciones.</span><b>3</b><span><strong>Revisa</strong> varios registros para buscar patrones.</span><b>4</b><span><strong>Plantea apoyos</strong> y revísalos en equipo.</span></div><p class="hint">Una hipótesis es provisional: no es un diagnóstico.</p>`));
- document.querySelector("#globalHelpBtn")?.addEventListener("click",()=>quickHelp("Ayuda rápida",`<div class="help-menu"><p><b>Nuevo registro</b><br><span>Anota hechos observables.</span></p><p><b>Registros</b><br><span>Consulta, edita o duplica.</span></p><p><b>Patrones</b><br><span>Revisa tendencias, no diagnósticos.</span></p><p><b>Importar CSV</b><br><span>Trae registros de otro dispositivo.</span></p><p><b>Exportar</b><br><span>Genera PDF o CSV localmente.</span></p></div>`));
- bindHelpButtons(document.querySelector("#home"));
+  const rs=await allRecords(), old=oldCount(rs);
+  const note=old?`<div class="compact-note"><strong>${old} registro(s) para revisar</strong><button type="button" class="help-dot" data-help-title="Revisión de datos" data-help-body="Revisa si sigue siendo necesario conservar estos registros. La aplicación no borra automáticamente.">?</button></div>`:"";
+  const el=document.querySelector("#screen-home");
+  el.innerHTML=`
+    <div class="card hero">
+      <div class="hero-copy">
+        <span class="app-kicker">ACP · Registro educativo</span><span class="version-chip">V13</span>
+        <h2>Registrar · Revisar · Apoyar</h2>
+        <span class="privacy-pill">Datos en este dispositivo</span>
+      </div>
+      ${note}
+    </div>
+
+    <button id="howUseBtn" class="how-use" type="button">
+      <span class="how-icon">?</span><strong>Cómo usarla en 60 segundos</strong><span class="chev">›</span>
+    </button>
+
+    <div class="install-card">
+      <div class="install-icon">＋</div>
+      <div><h3>Instalar</h3><p>Abrir como app.</p></div>
+      <button id="homeInstallBtn" class="secondary" type="button">Instalar app</button>
+    </div>
+
+    <div class="home-tools">
+      <button id="homeCsvImportBtn" class="secondary" type="button">↑ Importar CSV</button>
+      <span>Traer registros de otro dispositivo</span>
+    </div>
+
+    <div class="grid-buttons">
+      ${[
+        ["Nuevo registro","Registro completo","form"],
+        ["Registro rápido","Lo esencial","quick"],
+        ["Registros de hoy","Ver y editar","today"],
+        ["Todos los registros","Buscar y gestionar","all"],
+        ["Informe / Exportar","PDF, CSV y correo","report"],
+        ["Patrones descriptivos","Estadísticas","stats"],
+        ["Ayuda","Conceptos y ejemplos","help"],
+        ["Privacidad","Datos y centro","privacy"],
+        ["Acerca de","Autoría y licencia","about"],
+        ["Configuración","PIN, centro y revisión","settings"]
+      ].map(([a,b,c])=>`<button data-nav="${c}" type="button"><strong>${a}</strong><span>${b}</span></button>`).join("")}
+    </div>`;
+
+  el.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.nav)));
+  el.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
+  el.querySelector("#homeInstallBtn")?.addEventListener("click",openInstallHelp);
+  el.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo usarla en 60 segundos",`<div class="install-steps"><b>1</b><span><strong>Observa</strong> qué ocurre.</span><b>2</b><span><strong>Registra</strong> hechos observables.</span><b>3</b><span><strong>Revisa</strong> varios registros.</span><b>4</b><span><strong>Planifica apoyos</strong> y revísalos en equipo.</span></div><p class="hint">Las hipótesis son provisionales y no son diagnósticos.</p>`));
+  refreshInstallUI();
+  bindHelpButtons(el);
 }
 function formTemplate(d={}){
  const inc=d.inclusion||{};
@@ -710,7 +764,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
  db=await openDB();
  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;});
  window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;toast("App instalada");refreshInstallUI();});
- document.querySelector("#headerInstallBtn")?.addEventListener("click",()=>{const b=browserInstallInfo();if(b.ios)openInstallHelp();else if(deferredInstallPrompt)triggerInstall();else openInstallHelp();});
+ document.querySelector("#headerInstallBtn")?.addEventListener("click",openInstallHelp);
  document.querySelector("#floatingHelpBtn")?.addEventListener("click",()=>quickHelp("Ayuda rápida",`<div class="mini-flow"><b>1</b><span>Nuevo registro</span><b>2</b><span>Anota hechos observables</span><b>3</b><span>Revisa patrones</span><b>4</b><span>Planifica apoyos</span></div><p class="hint">Pulsa los símbolos ? para aclaraciones concretas.</p>`));
  document.querySelector("#conceptHelpBtn")?.addEventListener("click",()=>quickHelp("Conceptos clave",`<div class="help-menu"><p><b>Antecedente</b><br><span>Qué ocurrió justo antes.</span></p><p><b>Conducta observada</b><br><span>Qué se vio u oyó.</span></p><p><b>Consecuencia</b><br><span>Qué ocurrió después.</span></p><p><b>Hipótesis funcional</b><br><span>Explicación provisional, no diagnóstico.</span></p></div>`));
  document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshInstallUI();});
@@ -722,6 +776,22 @@ document.addEventListener("DOMContentLoaded",async()=>{
  document.querySelector("#createNewCodeBtn")?.addEventListener("click",async()=>{
    const codes=await usedCodes(),code=nextMaskedCode(codes);const target=currentCodeTarget();if(target)target.value=code;document.querySelector("#codeManagerDialog").close();toast(`Código ${code} creado`);
  });
+
+ document.querySelector("#customCodeInput")?.addEventListener("input",async e=>{
+   const warning=document.querySelector("#customCodeWarning");
+   const {problems}=validateCustomCode(e.target.value,await usedCodes());
+   warning.textContent=problems.length?`⚠ ${problems.join(" · ")}`:"";
+   warning.classList.toggle("hidden",!problems.length);
+ });
+ document.querySelector("#useCustomCodeBtn")?.addEventListener("click",async()=>{
+   const input=document.querySelector("#customCodeInput"),warning=document.querySelector("#customCodeWarning");
+   const result=validateCustomCode(input.value,await usedCodes());
+   if(result.problems.length){warning.textContent=`⚠ ${result.problems.join(" · ")}`;warning.classList.remove("hidden");return}
+   if(!confirm("Confirma que este código no permite identificar directamente al alumnado y que su diseño ha sido autorizado por el centro cuando corresponda."))return;
+   const target=currentCodeTarget();if(target)target.value=result.code;
+   input.value="";warning.classList.add("hidden");document.querySelector("#codeManagerDialog").close();toast("Código aplicado");
+ });
+
  document.querySelector("#saveCenterCustomizeBtn")?.addEventListener("click",()=>{
    const prefix=normalizePrefix(document.querySelector("#codePrefixSetting").value);
    savePrefs({centerDisplayName:document.querySelector("#centerDisplayName").value.trim(),codePrefix:prefix,codeFormat:document.querySelector("#codeFormatSetting").value,centerLocalNote:document.querySelector("#centerLocalNote").value.trim()});
@@ -740,13 +810,6 @@ document.addEventListener("DOMContentLoaded",async()=>{
  acpCheck?.addEventListener("change",()=>acpBtn.disabled=!(acpCheck.checked&&acpPendingImport.length));
  acpBtn?.addEventListener("click",async()=>{if(!acpCheck.checked||!acpPendingImport.length)return;for(const r of acpPendingImport)await putRecord(r);const n=acpPendingImport.length;acpPendingImport=[];document.querySelector("#importDialog")?.close();toast(`${n} registros importados`);renderHome();show("home")});
 
-
- const csvFile=document.querySelector("#csvImportFile"),csvPreview=document.querySelector("#csvImportPreview"),csvConfirm=document.querySelector("#csvImportConfirm"),csvBtn=document.querySelector("#csvImportBtn");
- let pendingCsvRecords=[];
- csvFile?.addEventListener("change",async()=>{pendingCsvRecords=[];csvBtn.disabled=true;csvPreview.classList.add("hidden");const file=csvFile.files?.[0];if(!file)return;try{pendingCsvRecords=await importCsvFile(file);csvPreview.innerHTML=`<div class="import-summary"><strong>${pendingCsvRecords.length}</strong> registro(s) preparados.</div>`;csvPreview.classList.remove("hidden");csvBtn.disabled=!csvConfirm.checked}catch{csvPreview.innerHTML=`<div class="risk">No se ha podido leer este CSV.</div>`;csvPreview.classList.remove("hidden")}});
- csvConfirm?.addEventListener("change",()=>{csvBtn.disabled=!(csvConfirm.checked&&pendingCsvRecords.length)});
- csvBtn?.addEventListener("click",async()=>{if(!csvConfirm.checked||!pendingCsvRecords.length)return;for(const r of pendingCsvRecords)await putRecord(r);document.querySelector("#importDialog")?.close();toast(`${pendingCsvRecords.length} registro(s) importados`);pendingCsvRecords=[];await renderList("all");show("list")});
-
  
  document.querySelectorAll("[data-bottom-nav]").forEach(b=>b.addEventListener("click",()=>{const d=b.dataset.bottomNav;if(d==="home"){renderHome();show("home")}else navigate(d)}));
  document.querySelector("#reviewProceed").onclick=async e=>{if(!document.querySelector("#reviewConfirm").checked){e.preventDefault();return}const fn=pendingReviewAction;pendingReviewAction=null;setTimeout(async()=>{try{await fn?.()}catch(err){if(err.message!=="none"){console.error("Fallo de exportación",err?.name||"Error");alert("No se ha podido abrir el archivo para guardarlo o compartirlo. Cierra y vuelve a abrir la app; si persiste, revisaremos la integración nativa.")}}},0)};
@@ -764,5 +827,14 @@ document.addEventListener("DOMContentLoaded",async()=>{
    if(native){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}
    else navigator.serviceWorker.register("./sw.js").catch(()=>{});
  }
- if(prefs().accepted){await renderHome();show("home")}else{renderConsent();show("consent")}
+ try{
+   if(prefs().accepted){await renderHome();show("home")}
+   else{renderConsent();show("consent")}
+ }catch(err){
+   console.error("Inicio",err);
+   const h=document.querySelector("#screen-home");
+   h.innerHTML='<div class="card"><h2>Registro ACP Escolar</h2><p>No se pudo iniciar correctamente.</p><button id="retryHome">Reintentar</button></div>';
+   show("home");
+   document.querySelector("#retryHome")?.addEventListener("click",async()=>{await renderHome();show("home")});
+ }
 });

@@ -985,3 +985,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .code-pick{width:100%}
  .doc-row{align-items:flex-start;flex-direction:column}.doc-row>div:last-child{width:100%}.doc-row button{flex:1}
 }
+
+/* V13 — stable cross-platform */
+#menuHome,#menuHomeRemoved{display:none!important}
+.app-header{display:flex!important;align-items:center!important;justify-content:space-between!important}
+.brand-lockup{display:flex!important;align-items:center!important;gap:.7rem!important;min-width:0}
+.brand-icon{width:48px!important;height:48px!important;flex:0 0 48px!important;border-radius:16px!important;display:grid!important;place-items:center!important;background:#eef7f3!important;color:#2d6654!important;font-weight:950!important}
+.brand-text{min-width:0}.brand-text h1{margin:0!important}.brand-text p{margin:0!important}
+.header-install{display:block;flex:0 0 auto;border-radius:18px!important}
+.how-use{width:100%!important;min-height:56px!important;border-radius:24px!important;background:#fff!important;color:var(--text)!important;border:1px solid var(--border)!important;box-shadow:none!important}
+.install-card{border-radius:24px!important}
+.home-tools{border-radius:24px!important}
+.grid-buttons button{border-radius:28px!important;min-height:74px!important}
+.card{border-radius:28px!important}
+.custom-code-box{margin-top:.8rem;padding:.7rem;border:1px solid var(--border);border-radius:18px;background:#f8fbfa}
+.custom-code-box summary{font-weight:850;color:var(--brand)}
+@media(display-mode:standalone){#headerInstallBtn,.install-card{display:none!important}}
+@media(min-width:820px){
+ body{padding-bottom:94px!important}
+ .bottom-nav{display:grid!important;position:fixed!important;bottom:0!important;left:50%!important;transform:translateX(-50%)!important;width:min(760px,calc(100% - 2rem))!important}
+}

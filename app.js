@@ -977,6 +977,101 @@ async function importCsvFile(file){
   if(!records.length) throw new Error("NO_VALID_RECORDS");
   return records;
 }
+
+function minuteKey(dateLike){
+  const d=new Date(dateLike);
+  if(Number.isNaN(d.getTime()))return "";
+  const yy=d.getFullYear(),mm=String(d.getMonth()+1).padStart(2,"0"),dd=String(d.getDate()).padStart(2,"0");
+  const hh=String(d.getHours()).padStart(2,"0"),mi=String(d.getMinutes()).padStart(2,"0");
+  return `${yy}-${mm}-${dd}T${hh}:${mi}`;
+}
+function normalizeCompareValue(v){
+  if(Array.isArray(v))return [...v].map(x=>String(x??"").trim()).filter(Boolean).sort().join(" | ");
+  if(v && typeof v==="object")return JSON.stringify(v,Object.keys(v).sort());
+  return String(v??"").trim();
+}
+const CSV_COMPARE_FIELDS=[
+  ["grupo","Curso / grupo"],["profesional","Profesional"],["contexto","Contexto"],["contextoOtro","Contexto · Otro"],
+  ["factores","Factores del entorno"],["factoresOtro","Factores · Otro"],["antecedente","Antecedente"],["antecedenteOtro","Antecedente · Otro"],
+  ["antecedenteDesc","Descripción antecedente"],["conducta","Conducta"],["conductaOtro","Conducta · Otro"],["conductaDesc","Descripción conducta"],
+  ["duracionValor","Duración"],["duracionUnidad","Unidad duración"],["frecuencia","Frecuencia"],["intensidad","Intensidad"],["riesgo","Riesgo"],
+  ["consecuencia","Consecuencia"],["consecuenciaOtro","Consecuencia · Otro"],["consecuenciaDesc","Descripción consecuencia"],
+  ["hipotesis","Hipótesis"],["hipotesisOtro","Hipótesis · Otro"],["apoyos","Apoyos"],["apoyosOtro","Apoyos · Otro"],
+  ["apoyoValoracion","Valoración del apoyo"],["proxima","Próxima vez"],["proximaOtro","Próxima vez · Otro"],["proximaTexto","Nota próxima vez"]
+];
+function compareCsvRecord(existing,incoming){
+  const diffs=[];
+  for(const [key,label] of CSV_COMPARE_FIELDS){
+    const a=normalizeCompareValue(existing?.[key]);
+    const b=normalizeCompareValue(incoming?.[key]);
+    if(a!==b)diffs.push({key,label,existing:a,incoming:b});
+  }
+  return diffs;
+}
+function findCsvMinuteMatch(existingRecords,incoming){
+  const code=String(incoming?.codigo||"").trim();
+  const key=minuteKey(incoming?.fechaHora);
+  if(!code||!key)return null;
+  return existingRecords.find(r=>String(r.codigo||"").trim()===code && minuteKey(r.fechaHora)===key)||null;
+}
+function askCsvConflict(existing,incoming,diffs){
+  return new Promise(resolve=>{
+    const d=document.querySelector("#csvConflictDialog");
+    const summary=document.querySelector("#csvConflictSummary");
+    const box=document.querySelector("#csvConflictDiffs");
+    if(!d){resolve("cancel");return}
+    const same=!diffs.length;
+    summary.textContent=same
+      ? `Ya existe un registro del código ${incoming.codigo} en la misma fecha y minuto y todos los datos coinciden.`
+      : `Ya existe un registro del código ${incoming.codigo} en la misma fecha y minuto, pero hay ${diffs.length} diferencia(s).`;
+    box.innerHTML=same
+      ? `<div class="csv-same-note">Los dos registros son idénticos.</div>`
+      : `<div class="table-wrap"><table><thead><tr><th>Campo</th><th>Guardado</th><th>CSV</th></tr></thead><tbody>${diffs.map(x=>`<tr><td>${esc(x.label)}</td><td>${esc(x.existing||"—")}</td><td>${esc(x.incoming||"—")}</td></tr>`).join("")}</tbody></table></div>`;
+    const replace=document.querySelector("#csvConflictReplace");
+    const both=document.querySelector("#csvConflictKeepBoth");
+    replace.textContent=same?"Omitir duplicado":"Reemplazar";
+    const cleanup=()=>{
+      replace.onclick=null;both.onclick=null;
+      d.removeEventListener("close",onClose);
+    };
+    const finish=(action)=>{cleanup();d.close();resolve(action)};
+    const onClose=()=>{cleanup();resolve("cancel")};
+    d.addEventListener("close",onClose,{once:true});
+    replace.onclick=()=>finish(same?"skip":"replace");
+    both.onclick=()=>finish("both");
+    d.showModal();
+  });
+}
+async function importCsvRecordsWithConflictResolution(records){
+  const existing=await allRecords();
+  let imported=0,replaced=0,skipped=0,keptBoth=0;
+  for(const incoming0 of records){
+    const incoming={...incoming0};
+    if(!incoming.id)incoming.id=uid();
+    const match=findCsvMinuteMatch(existing,incoming);
+    if(!match){
+      await putRecord(incoming);existing.push(incoming);imported++;continue;
+    }
+    const diffs=compareCsvRecord(match,incoming);
+    const action=await askCsvConflict(match,incoming,diffs);
+    if(action==="cancel")return {cancelled:true,imported,replaced,skipped,keptBoth};
+    if(action==="skip"){skipped++;continue}
+    if(action==="replace"){
+      incoming.id=match.id;
+      incoming.createdAt=match.createdAt||incoming.createdAt||new Date().toISOString();
+      incoming.updatedAt=new Date().toISOString();
+      await putRecord(incoming);
+      const i=existing.findIndex(r=>r.id===match.id);if(i>=0)existing[i]=incoming;
+      replaced++;continue;
+    }
+    if(action==="both"){
+      incoming.id=uid();
+      await putRecord(incoming);existing.push(incoming);keptBoth++;continue;
+    }
+  }
+  return {cancelled:false,imported,replaced,skipped,keptBoth};
+}
+
 function openImportDialog(){
   const d=document.querySelector("#importDialog"),f=document.querySelector("#csvImportFile"),p=document.querySelector("#csvImportPreview"),c=document.querySelector("#csvImportConfirm"),b=document.querySelector("#csvImportBtn");
   if(!d)return;f.value="";p.innerHTML="";p.classList.add("hidden");c.checked=false;b.disabled=true;d.showModal();
@@ -2026,7 +2121,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
  const acpFile=document.querySelector("#csvImportFile"),acpPrev=document.querySelector("#csvImportPreview"),acpCheck=document.querySelector("#csvImportConfirm"),acpBtn=document.querySelector("#csvImportBtn");
  acpFile?.addEventListener("change",async()=>{acpPendingImport=[];acpBtn.disabled=true;const f=acpFile.files?.[0];if(!f)return;try{acpPendingImport=await acpReadImport(f);acpPrev.innerHTML=`<div class="import-summary"><strong>${acpPendingImport.length}</strong> registros listos para importar.</div>`;acpPrev.classList.remove("hidden");acpBtn.disabled=!(acpCheck.checked&&acpPendingImport.length)}catch{acpPrev.innerHTML='<div class="risk">CSV no compatible.</div>';acpPrev.classList.remove("hidden")}});
  acpCheck?.addEventListener("change",()=>acpBtn.disabled=!(acpCheck.checked&&acpPendingImport.length));
- acpBtn?.addEventListener("click",async()=>{if(!acpCheck.checked||!acpPendingImport.length)return;for(const r of acpPendingImport)await putRecord(r);const n=acpPendingImport.length;acpPendingImport=[];document.querySelector("#importDialog")?.close();toast(`${n} registros importados`);renderHome();show("home")});
+ acpBtn?.addEventListener("click",async()=>{if(!acpCheck.checked||!acpPendingImport.length)return;const importResult=await importCsvRecordsWithConflictResolution(acpPendingImport);const n=acpPendingImport.length;acpPendingImport=[];document.querySelector("#importDialog")?.close();toast(`${n} registros importados`);renderHome();show("home")});
 
  
  document.querySelectorAll("[data-bottom-nav]").forEach(b=>b.addEventListener("click",async()=>{

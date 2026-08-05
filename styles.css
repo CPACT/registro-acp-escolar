@@ -1686,3 +1686,16 @@ button,.chip,.bottom-nav button{min-height:44px}
   .bottom-nav button{min-height:60px!important}
   .bottom-nav button>span:last-child{font-size:.66rem!important}
 }
+
+/* V21q — conflictos al importar CSV */
+.csv-conflict-card{max-width:760px}
+.csv-conflict-diffs{max-height:48vh;overflow:auto;margin:.65rem 0}
+.csv-conflict-diffs table{width:100%;border-collapse:collapse;font-size:.78rem}
+.csv-conflict-diffs th,.csv-conflict-diffs td{padding:.5rem;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+.csv-conflict-diffs th{position:sticky;top:0;background:#f7faf9;z-index:1}
+.csv-same-note{padding:.7rem;border-radius:14px;background:#f2f7f5;color:var(--muted)}
+.csv-conflict-actions{flex-wrap:wrap}
+@media(max-width:620px){
+  .csv-conflict-actions{display:grid!important;grid-template-columns:1fr 1fr}
+  .csv-conflict-actions button:first-child{grid-column:1/-1}
+}

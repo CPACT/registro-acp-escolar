@@ -736,15 +736,138 @@ function recordHtml(r){
  <section class="detail-section"><h3>Inclusión y contexto <button type="button" class="help-dot" data-help-title="Inclusión y contexto" data-help-body="Revisa accesibilidad, participación, predictibilidad, comunicación y dignidad. No evalúa a la persona.">?</button></h3><div class="inclusion-list">${INCLUSION.map(k=>`<div><span>${esc(INCLUSION_LABELS[k])}</span><strong>${esc(r.inclusion?.[k]||"—")}</strong></div>`).join("")}</div></section>`;
 }
 let selectedExportIds=[];
+
+function studentReportGroups(records){
+  const map=new Map();
+  for(const r of records){
+    if(!r.codigo)continue;
+    if(!map.has(r.codigo))map.set(r.codigo,[]);
+    map.get(r.codigo).push(r);
+  }
+  return [...map.entries()].map(([code,items])=>{
+    items.sort((a,b)=>new Date(b.fechaHora)-new Date(a.fechaHora));
+    return {code,items,last:new Date(items[0]?.fechaHora||0).getTime()};
+  });
+}
+function sortStudentGroups(groups,order="recent"){
+  return [...groups].sort((a,b)=>order==="oldest"?(a.last-b.last):(b.last-a.last));
+}
+
 async function renderReport(){
- const rs=await allRecords();document.querySelector("#screen-report").innerHTML=`<div class=card><h2>Informe / Exportar</h2><p>Selecciona uno o varios registros. Todas las operaciones se inician de forma deliberada por la persona usuaria.</p>
- <div id=exportChoices>${rs.length?rs.map(r=>`<label class=checkline><input class=export-choice type=checkbox value="${esc(r.id)}" ${selectedExportIds.includes(r.id)?"checked":""}> ${esc(r.codigo)} — ${esc(new Date(r.fechaHora).toLocaleString("es-ES"))} ${r.demo?"(DEMO)":""}</label>`).join(""):"<p>No hay registros.</p>"}</div>
- <div class=actions><button id=csvBtn>CSV</button><button id=pdfBtn>PDF</button><button id=docxBtn>DOCX</button><button id=mailBtn>Correo</button></div></div>`;
- const ids=()=>[...document.querySelectorAll(".export-choice:checked")].map(x=>x.value);
- document.querySelector("#csvBtn").onclick=()=>reviewGate(async()=>exportCSV(await recordsByIds(ids())));
- document.querySelector("#pdfBtn").onclick=()=>reviewGate(async()=>generatePDF(await recordsByIds(ids())));
- document.querySelector("#docxBtn").onclick=()=>reviewGate(async()=>exportRecordsDOCX(await recordsByIds(ids())));
- document.querySelector("#mailBtn").onclick=()=>reviewGate(async()=>prepareMail(await recordsByIds(ids())));
+ const all=await allRecords();
+ const groups=studentReportGroups(all);
+ document.querySelector("#screen-report").innerHTML=`<div class="card screen-card">${screenCloseButton()}
+   <h2>Informe por alumnado</h2>
+   <p class="hint">Selecciona uno, varios o todos los códigos pseudónimos.</p>
+
+   <div class="student-report-toolbar">
+     <label class="checkline select-all-students">
+       <input id="studentAll" type="checkbox">
+       <strong>Todos</strong>
+     </label>
+     <label>Orden
+       <select id="studentOrder">
+         <option value="recent">Más recientes primero</option>
+         <option value="oldest">Más antiguos primero</option>
+       </select>
+     </label>
+   </div>
+
+   <div class="student-picker-shell">
+     <button id="studentPrev" class="student-arrow" type="button" aria-label="Ver códigos anteriores">↑</button>
+     <div id="studentPicker" class="student-picker" role="group" aria-label="Códigos pseudónimos"></div>
+     <button id="studentNext" class="student-arrow" type="button" aria-label="Ver códigos siguientes">↓</button>
+   </div>
+
+   <div id="studentSelectionSummary" class="student-selection-summary"></div>
+
+   <details class="filter-panel">
+     <summary>Opciones del informe</summary>
+     <div class="report-options-grid">
+       <label class="checkline"><input id="studentCharts" type="checkbox" checked> Incluir gráficos</label>
+       <label class="checkline"><input id="studentDetails" type="checkbox" checked> Incluir detalle de registros</label>
+     </div>
+   </details>
+
+   <div class="actions report-export-actions">
+     <button id="studentPdf">PDF</button>
+     <button id="studentDocx">DOCX</button>
+     <button id="studentXlsx">XLSX</button>
+     <button id="studentCsv">CSV</button>
+   </div>
+ </div>`;
+
+ let page=0;
+ const PAGE=5;
+ let selected=new Set();
+
+ const orderedGroups=()=>sortStudentGroups(groups,document.querySelector("#studentOrder").value);
+ const maxPage=()=>Math.max(0,Math.ceil(orderedGroups().length/PAGE)-1);
+
+ const renderPicker=()=>{
+   const sorted=orderedGroups();
+   page=Math.min(page,maxPage());
+   const slice=sorted.slice(page*PAGE,page*PAGE+PAGE);
+   const picker=document.querySelector("#studentPicker");
+   picker.innerHTML=slice.length?slice.map(g=>`
+     <label class="student-code-option">
+       <input type="checkbox" value="${esc(g.code)}" ${selected.has(g.code)?"checked":""}>
+       <span><strong>${esc(g.code)}</strong><small>${g.items.length} registro(s) · ${new Date(g.last).toLocaleDateString("es-ES")}</small></span>
+     </label>`).join(""):'<p class="hint">No hay códigos guardados.</p>';
+
+   picker.querySelectorAll('input[type="checkbox"]').forEach(ch=>ch.addEventListener("change",()=>{
+     if(ch.checked)selected.add(ch.value);else selected.delete(ch.value);
+     document.querySelector("#studentAll").checked=selected.size===groups.length&&groups.length>0;
+     updateSummary();
+   }));
+
+   document.querySelector("#studentPrev").disabled=page===0;
+   document.querySelector("#studentNext").disabled=page>=maxPage();
+   updateSummary();
+ };
+
+ const updateSummary=()=>{
+   const totalRecords=all.filter(r=>selected.has(r.codigo)).length;
+   document.querySelector("#studentSelectionSummary").textContent=
+     selected.size?`${selected.size} código(s) · ${totalRecords} registro(s) seleccionados`:"Selecciona al menos un código.";
+ };
+
+ document.querySelector("#studentPrev").onclick=()=>{if(page>0){page--;renderPicker()}};
+ document.querySelector("#studentNext").onclick=()=>{if(page<maxPage()){page++;renderPicker()}};
+
+ document.querySelector("#studentOrder").onchange=()=>{page=0;renderPicker()};
+
+ document.querySelector("#studentAll").onchange=e=>{
+   selected=e.target.checked?new Set(groups.map(g=>g.code)):new Set();
+   renderPicker();
+ };
+
+ const currentRecords=()=>{
+   const order=document.querySelector("#studentOrder").value;
+   let rs=all.filter(r=>selected.has(r.codigo));
+   rs.sort((a,b)=>order==="oldest"
+     ? new Date(a.fechaHora)-new Date(b.fechaHora)
+     : new Date(b.fechaHora)-new Date(a.fechaHora));
+   return rs;
+ };
+ const options=()=>({
+   charts:document.querySelector("#studentCharts").checked,
+   details:document.querySelector("#studentDetails").checked,
+   code:selected.size===1?[...selected][0]:"all"
+ });
+ const exportSelected=async fn=>{
+   const rs=currentRecords();
+   if(!rs.length){toast("Selecciona al menos un código");announceA11y("Selecciona al menos un código.");return}
+   await reviewGate(async()=>fn(rs,options()));
+ };
+
+ document.querySelector("#studentPdf").onclick=()=>exportSelected(exportStatsPDF);
+ document.querySelector("#studentDocx").onclick=()=>exportSelected(exportStatsDOCX);
+ document.querySelector("#studentXlsx").onclick=()=>exportSelected(exportStatsXlsx);
+ document.querySelector("#studentCsv").onclick=()=>exportSelected(async rs=>exportStatsCSV(rs));
+
+ renderPicker();
+ bindScreenClose(document.querySelector("#screen-report"));
 }
 async function recordsByIds(ids){if(!ids.length){toast("Selecciona al menos un registro");throw new Error("none")}const a=[];for(const id of ids){const r=await getRecord(id);if(r)a.push(r)}return a}
 function reviewGate(fn){pendingReviewAction=fn;const d=document.querySelector("#reviewDialog"),c=document.querySelector("#reviewConfirm"),b=document.querySelector("#reviewProceed");c.checked=false;b.disabled=true;c.onchange=()=>b.disabled=!c.checked;d.showModal()}
@@ -1135,40 +1258,156 @@ async function exportUserFile(blob,filename){
 function downloadBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 
 async function renderStats(){
- const all=await allRecords(),codes=[...new Set(all.map(r=>r.codigo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
- document.querySelector("#screen-stats").innerHTML=`<div class="card screen-card">${screenCloseButton()}<h2>Patrones descriptivos</h2>
+ const all=await allRecords();
+ const groups=studentReportGroups(all);
+ document.querySelector("#screen-stats").innerHTML=`<div class="card screen-card">${screenCloseButton()}
+ <h2>Patrones descriptivos</h2>
  <p class="hint">Resumen local. No demuestra la función de una conducta ni realiza diagnósticos.</p>
- <details class="filter-panel"><summary>Filtros y opciones</summary><div class="stats-controls">
-   <label>Código pseudónimo<select id="statsCode"><option value="all">Todos</option>${codes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
-   <label>Desde<input id="statsFrom" type="date"></label>
-   <label>Hasta<input id="statsTo" type="date"></label>
-   <label class="checkline"><input id="statsCharts" type="checkbox" checked> Incluir gráficos</label>
-   <label class="checkline"><input id="statsDetails" type="checkbox"> Incluir detalle de registros</label>
-   <button id="statsApply" type="button">Aplicar</button>
- </div>
- </div></details><div id="statsSummary"></div>
+
+ <details class="filter-panel">
+   <summary>Filtros y opciones</summary>
+   <div class="stats-filter-stack">
+     <div class="student-report-toolbar">
+       <label class="checkline select-all-students">
+         <input id="statsAllCodes" type="checkbox" checked>
+         <strong>Todos los códigos</strong>
+       </label>
+       <label>Orden
+         <select id="statsCodeOrder">
+           <option value="recent">Más recientes primero</option>
+           <option value="oldest">Más antiguos primero</option>
+         </select>
+       </label>
+     </div>
+
+     <div class="student-picker-shell">
+       <button id="statsPrevCodes" class="student-arrow" type="button" aria-label="Ver códigos anteriores">↑</button>
+       <div id="statsCodePicker" class="student-picker" role="group" aria-label="Códigos pseudónimos"></div>
+       <button id="statsNextCodes" class="student-arrow" type="button" aria-label="Ver códigos siguientes">↓</button>
+     </div>
+
+     <div id="statsCodeSummary" class="student-selection-summary"></div>
+
+     <div class="stats-controls">
+       <label>Desde<input id="statsFrom" type="date"></label>
+       <label>Hasta<input id="statsTo" type="date"></label>
+       <label class="checkline"><input id="statsCharts" type="checkbox" checked> Incluir gráficos</label>
+       <label class="checkline"><input id="statsDetails" type="checkbox"> Incluir detalle de registros</label>
+       <button id="statsApply" type="button">Aplicar</button>
+     </div>
+   </div>
+ </details>
+
+ <div id="statsSummary"></div>
  <div class="actions stats-export"><button id="statsPdf">PDF</button><button id="statsDocx">DOCX</button><button id="statsXlsx">XLSX</button><button id="statsCsv">CSV</button></div>
  </div>`;
- const state=()=>({code:document.querySelector("#statsCode").value,from:document.querySelector("#statsFrom").value,to:document.querySelector("#statsTo").value,charts:document.querySelector("#statsCharts").checked,details:document.querySelector("#statsDetails").checked});
- const current=()=>statsFilterRecords(all,state());
- const draw=()=>{const rs=current(),s=statsData(rs),charts=state().charts;document.querySelector("#statsSummary").innerHTML=`<div class="stats-kpis"><div><span>Registros</span><strong>${s.total}</strong></div><div><span>Duración media</span><strong>${s.avgDuration} s</strong></div><div class="kpi-with-help">
-      <span>Apoyo útil <button type="button" class="help-dot stat-help" data-help-title="Apoyo útil" data-help-body="${encodeURIComponent("Porcentaje de registros valorados en los que el apoyo se marcó como Sí o Parcialmente. Los registros No valorable se excluyen del cálculo. Es un indicador descriptivo y no demuestra por sí solo la eficacia del apoyo.")}">?</button></span>
-      <strong>${s.supportUseful}%</strong>
-    </div><div><span>Códigos</span><strong>${Object.keys(s.codes).length}</strong></div></div><details class="support-breakdown">
-      <summary>Ver desglose de apoyos</summary>
-      <div class="support-breakdown-grid">
-        <span><b>Sí</b> ${s.supportYesCount}</span>
-        <span><b>Parcialmente</b> ${s.supportPartCount}</span>
-        <span><b>No</b> ${s.supportNoCount}</span>
-        <span><b>No valorable</b> ${s.supportNotValuable}</span>
-      </div>
-    </details>${charts?`<div class="chart-grid"><div class="stat"><h3>Conductas</h3>${svgBars(s.conducta)}</div><div class="stat"><h3>Contextos</h3>${svgBars(s.contexto)}</div><div class="stat"><h3>Riesgos</h3>${svgPie(s.riesgo)}</div><div class="stat"><h3>Registros por código</h3>${svgBars(s.codes)}</div></div>`:""}<details class="stats-table"><summary>Ver resumen numérico</summary><div class="table-wrap"><table><thead><tr><th>Código</th><th>Registros</th></tr></thead><tbody>${humanRows(s.codes,100).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join("")}</tbody></table></div></details>${state().details?`<details open><summary>Detalle de ${rs.length} registros</summary><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Código</th><th>Contexto</th><th>Conducta</th><th>Intensidad</th><th>Riesgo</th></tr></thead><tbody>${rs.map(r=>`<tr><td>${esc(new Date(r.fechaHora).toLocaleDateString("es-ES"))}</td><td>${esc(r.codigo)}</td><td>${esc((r.contexto||[]).join(", "))}</td><td>${esc((r.conducta||[]).join(", "))}</td><td>${esc(r.intensidad)}</td><td>${esc(r.riesgo)}</td></tr>`).join("")}</tbody></table></div></details>`:""}`};
- document.querySelector("#statsApply").onclick=draw;draw();
- const gate=(fn)=>reviewGate(async()=>{const rs=current();if(!rs.length){toast("No hay registros con esos filtros");throw new Error("none")}await fn(rs,state())});
+
+ let page=0;
+ const PAGE=5;
+ let selected=new Set(groups.map(g=>g.code));
+
+ const orderedGroups=()=>sortStudentGroups(groups,document.querySelector("#statsCodeOrder").value);
+ const maxPage=()=>Math.max(0,Math.ceil(orderedGroups().length/PAGE)-1);
+
+ const renderCodePicker=()=>{
+   const sorted=orderedGroups();
+   page=Math.min(page,maxPage());
+   const slice=sorted.slice(page*PAGE,page*PAGE+PAGE);
+   const picker=document.querySelector("#statsCodePicker");
+   picker.innerHTML=slice.length?slice.map(g=>`
+     <label class="student-code-option">
+       <input type="checkbox" value="${esc(g.code)}" ${selected.has(g.code)?"checked":""}>
+       <span><strong>${esc(g.code)}</strong><small>${g.items.length} registro(s) · ${new Date(g.last).toLocaleDateString("es-ES")}</small></span>
+     </label>`).join(""):'<p class="hint">No hay códigos guardados.</p>';
+
+   picker.querySelectorAll('input[type="checkbox"]').forEach(ch=>ch.addEventListener("change",()=>{
+     if(ch.checked)selected.add(ch.value);else selected.delete(ch.value);
+     document.querySelector("#statsAllCodes").checked=selected.size===groups.length&&groups.length>0;
+     updateCodeSummary();
+   }));
+
+   document.querySelector("#statsPrevCodes").disabled=page===0;
+   document.querySelector("#statsNextCodes").disabled=page>=maxPage();
+   updateCodeSummary();
+ };
+
+ const updateCodeSummary=()=>{
+   if(selected.size===groups.length&&groups.length>0){
+     document.querySelector("#statsCodeSummary").textContent=`Todos los códigos · ${all.length} registro(s)`;
+   }else{
+     const n=all.filter(r=>selected.has(r.codigo)).length;
+     document.querySelector("#statsCodeSummary").textContent=selected.size?`${selected.size} código(s) · ${n} registro(s)`:"Ningún código seleccionado";
+   }
+ };
+
+ document.querySelector("#statsPrevCodes").onclick=()=>{if(page>0){page--;renderCodePicker()}};
+ document.querySelector("#statsNextCodes").onclick=()=>{if(page<maxPage()){page++;renderCodePicker()}};
+ document.querySelector("#statsCodeOrder").onchange=()=>{page=0;renderCodePicker()};
+ document.querySelector("#statsAllCodes").onchange=e=>{
+   selected=e.target.checked?new Set(groups.map(g=>g.code)):new Set();
+   renderCodePicker();
+ };
+
+ const state=()=>({
+   codes:new Set(selected),
+   from:document.querySelector("#statsFrom").value,
+   to:document.querySelector("#statsTo").value,
+   charts:document.querySelector("#statsCharts").checked,
+   details:document.querySelector("#statsDetails").checked,
+   order:document.querySelector("#statsCodeOrder").value
+ });
+
+ const current=()=>{
+   const st=state();
+   const from=st.from?new Date(`${st.from}T00:00:00`):null;
+   const to=st.to?new Date(`${st.to}T23:59:59`):null;
+   let rs=all.filter(r=>st.codes.has(r.codigo)&&(!from||new Date(r.fechaHora)>=from)&&(!to||new Date(r.fechaHora)<=to));
+   rs.sort((a,b)=>st.order==="oldest"?new Date(a.fechaHora)-new Date(b.fechaHora):new Date(b.fechaHora)-new Date(a.fechaHora));
+   return rs;
+ };
+
+ const draw=()=>{
+   const rs=current(),s=statsData(rs),charts=state().charts;
+   document.querySelector("#statsSummary").innerHTML=`<div class="stats-kpis">
+     <div><span>Registros</span><strong>${s.total}</strong></div>
+     <div><span>Duración media</span><strong>${s.avgDuration} s</strong></div>
+     <div class="kpi-with-help"><span>Apoyo útil <button type="button" class="help-dot stat-help" data-help-title="Apoyo útil" data-help-body="${encodeURIComponent("Porcentaje de registros valorados en los que el apoyo se marcó como Sí o Parcialmente. Los registros No valorable se excluyen del cálculo. Es un indicador descriptivo y no demuestra por sí solo la eficacia del apoyo.")}">?</button></span><strong>${s.supportUseful}%</strong></div>
+     <div><span>Códigos</span><strong>${Object.keys(s.codes).length}</strong></div>
+   </div>
+   <details class="support-breakdown"><summary>Ver desglose de apoyos</summary><div class="support-breakdown-grid">
+     <span><b>Sí</b> ${s.supportYesCount}</span><span><b>Parcialmente</b> ${s.supportPartCount}</span><span><b>No</b> ${s.supportNoCount}</span><span><b>No valorable</b> ${s.supportNotValuable}</span>
+   </div></details>
+   ${charts?`<div class="chart-grid">
+     <div class="stat"><h3>Conductas</h3>${svgBars(s.conducta)}</div>
+     <div class="stat"><h3>Contextos</h3>${svgBars(s.contexto)}</div>
+     <div class="stat"><h3>Riesgos</h3>${svgPie(s.riesgo)}</div>
+     <div class="stat"><h3>Registros por código</h3>${svgBars(s.codes)}</div>
+   </div>`:""}
+   <details class="stats-table"><summary>Ver resumen numérico</summary><div class="table-wrap"><table><thead><tr><th>Código</th><th>Registros</th></tr></thead><tbody>${humanRows(s.codes,100).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join("")}</tbody></table></div></details>
+   ${state().details?`<details open><summary>Detalle de ${rs.length} registros</summary><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Código</th><th>Contexto</th><th>Conducta</th><th>Intensidad</th><th>Riesgo</th></tr></thead><tbody>${rs.map(r=>`<tr><td>${esc(new Date(r.fechaHora).toLocaleDateString("es-ES"))}</td><td>${esc(r.codigo)}</td><td>${esc((r.contexto||[]).join(", "))}</td><td>${esc((r.conducta||[]).join(", "))}</td><td>${esc(r.intensidad)}</td><td>${esc(r.riesgo)}</td></tr>`).join("")}</tbody></table></div></details>`:""}`;
+   bindHelpButtons(document.querySelector("#statsSummary"));
+ };
+
+ document.querySelector("#statsApply").onclick=()=>{
+   if(!selected.size){toast("Selecciona al menos un código");return}
+   draw();
+ };
+ draw();
+
+ const gate=(fn)=>reviewGate(async()=>{
+   const rs=current();
+   if(!rs.length){toast("No hay registros con esos filtros");return}
+   const codeLabel=selected.size===1?[...selected][0]:"all";
+   await fn(rs,{charts:state().charts,details:state().details,code:codeLabel});
+ });
+
  document.querySelector("#statsPdf").onclick=()=>gate(exportStatsPDF);
  document.querySelector("#statsDocx").onclick=()=>gate(exportStatsDOCX);
  document.querySelector("#statsXlsx").onclick=()=>gate(exportStatsXlsx);
  document.querySelector("#statsCsv").onclick=()=>gate(async rs=>exportStatsCSV(rs));
+
+ renderCodePicker();
+ bindScreenClose(document.querySelector("#screen-stats"));
 }
 function renderHelp(){
  const qs=[["¿Qué es ABC?","Un modo estructurado de registrar Antecedente, Conducta observada y Consecuencia para revisar patrones sin convertir una observación aislada en una explicación causal."],["¿Qué es un antecedente?","Lo que ocurrió inmediatamente antes del episodio, descrito mediante hechos observables."],["¿Qué es una consecuencia?","Lo que ocurrió inmediatamente después. No significa necesariamente premio, castigo ni causa."],["¿Qué es una hipótesis funcional?","Una explicación provisional sobre qué necesidad o función podría ser compatible con un patrón de registros. Requiere varios datos y revisión profesional/en equipo."],["¿Qué significa análisis funcional?","Proceso sistemático para comprender relaciones entre contexto, conducta y consecuencias. Esta aplicación ayuda a registrar datos, pero no sustituye una evaluación funcional profesional cuando sea necesaria."],["¿Observación o interpretación?","Observable: “Al indicarle que guardase el dispositivo, golpeó la mesa tres veces y salió del aula.” Interpretativo: “Se enfadó, quiso desafiar al profesor y perdió el control.” El primero describe hechos; el segundo atribuye estados internos o intenciones."],["¿Qué significa Apoyo Conductual Positivo?","Un enfoque centrado en la persona que busca comprender necesidades, prevenir dificultades y mejorar bienestar, participación, calidad de vida y apoyos, evitando reducir a la persona a una conducta."],["¿Por qué observar el entorno?","Porque accesibilidad, ruido, demandas, comunicación, predictibilidad, transiciones o tiempos de procesamiento pueden influir en la participación y regulación."],["¿Por qué una hipótesis necesita varios registros?","Un episodio aislado puede tener muchas explicaciones. Los patrones repetidos aportan información más prudente y útil."],["¿Qué es pseudonimización?","Sustituir identificadores directos por un código. Reduce riesgos, pero puede seguir siendo dato personal si existe información adicional que permite reidentificar."],["¿Qué datos no debo introducir?","Evita nombres completos, DNI, direcciones, diagnósticos, información clínica y cualquier dato identificativo que no sea necesario para la finalidad educativa del registro."]];

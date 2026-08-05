@@ -1499,3 +1499,45 @@ button,.chip,.bottom-nav button{min-height:44px}
 .support-breakdown-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.4rem;padding:0 .7rem .7rem}
 .support-breakdown-grid span{padding:.45rem .55rem;border-radius:12px;background:#f1f6f4;font-size:.78rem}
 @media(max-width:560px){.support-breakdown-grid{grid-template-columns:1fr 1fr}}
+
+/* V21c — selector de alumnado para informes */
+.student-report-toolbar{
+  display:flex;align-items:end;justify-content:space-between;gap:.7rem;flex-wrap:wrap;margin:.7rem 0
+}
+.select-all-students{
+  min-height:44px;padding:.55rem .75rem;border:1px solid var(--border);border-radius:16px;background:#f7faf9
+}
+.student-picker-shell{
+  display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:.5rem;align-items:stretch;margin:.7rem 0
+}
+.student-picker{
+  display:grid;gap:.45rem;min-height:310px;align-content:start
+}
+.student-code-option{
+  display:grid;grid-template-columns:auto 1fr;gap:.65rem;align-items:center;
+  min-height:54px;padding:.55rem .7rem;border:1px solid var(--border);border-radius:16px;background:#fff;cursor:pointer
+}
+.student-code-option:has(input:checked){background:#eef7f3;border-color:#9fc4b6}
+.student-code-option strong{display:block}
+.student-code-option small{display:block;color:var(--muted);font-size:.74rem;margin-top:.08rem}
+.student-arrow{
+  width:44px!important;min-width:44px!important;padding:0!important;border-radius:16px!important;
+  display:grid!important;place-items:center!important;font-size:1.2rem!important
+}
+.student-arrow:disabled{opacity:.3;cursor:not-allowed}
+.student-selection-summary{
+  margin:.45rem 0 .7rem;padding:.5rem .65rem;border-radius:14px;background:#f3f7f5;color:var(--muted);font-size:.8rem
+}
+.report-options-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}
+.report-export-actions{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem}
+@media(max-width:620px){
+  .student-picker-shell{grid-template-columns:38px minmax(0,1fr) 38px}
+  .student-arrow{width:38px!important;min-width:38px!important}
+  .student-picker{min-height:300px}
+  .report-options-grid{grid-template-columns:1fr}
+  .report-export-actions{grid-template-columns:1fr 1fr}
+}
+
+/* V21d — selección múltiple en Patrones descriptivos */
+.stats-filter-stack{display:grid;gap:.65rem}
+#statsCodePicker.student-picker{min-height:310px}

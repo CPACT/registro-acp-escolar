@@ -535,3 +535,14 @@ input[type=text],input[type=password],input[type=number],input[type=datetime-loc
 .file-drop input{display:block;margin:.7rem auto 0;max-width:100%}
 .import-summary{padding:.8rem;border-radius:16px;background:#edf6f2;margin:.7rem 0}
 @media(max-width:560px){.home-tools{display:grid}.home-tools button{width:100%}}
+
+/* V5: interfaz simplificada */
+.acp-mark{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(145deg,#315f51,#477e6b);color:#fff;font-weight:950;letter-spacing:.03em;box-shadow:0 5px 14px rgba(39,83,69,.18)}
+.install-mini{padding:.55rem .8rem;border-radius:14px}
+.how-use{width:100%;display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;column-gap:.7rem;align-items:center;text-align:left;background:#fff;border:1px solid #d9e6e0;border-radius:22px;padding:.8rem 1rem;margin:.65rem 0}
+.how-use>span:first-child{grid-row:1/3;font-size:1.4rem}.how-use strong{font-size:.95rem}.how-use small{color:var(--muted)}.how-use .chev{grid-column:3;grid-row:1/3;font-size:1.6rem;color:var(--muted)}
+.help-dot{display:inline-grid!important;place-items:center;width:28px!important;height:28px!important;min-height:28px!important;padding:0!important;border-radius:50%!important;font-size:.85rem!important;font-weight:900!important;background:#edf6f2!important;color:#315f51!important;border:1px solid #cfe1d9!important;vertical-align:middle;margin-left:.3rem}
+.compact-help{max-width:480px}.modal-head{display:flex;align-items:center;justify-content:space-between;gap:1rem}.modal-head h2{margin:0}.icon-close{width:38px;height:38px;min-height:38px;padding:0;border-radius:50%;font-size:1.4rem;background:#eef3f1;color:#315f51}
+.mini-flow{display:grid;grid-template-columns:34px 1fr;gap:.45rem .65rem;align-items:center;margin:.8rem 0}.mini-flow b{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#315f51;color:white}.mini-flow span{font-weight:750}
+main p.warning,main .warning{line-height:1.35}
+@media(max-width:560px){.acp-mark{width:44px;height:44px;border-radius:15px}.install-mini{font-size:.82rem}}

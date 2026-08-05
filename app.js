@@ -61,26 +61,11 @@ function refreshInstallUI(){
   const headerBtn=document.querySelector("#headerInstallBtn");
   const card=homeBtn?.closest(".install-card");
   if(info.standalone){
-    if(card){
-      card.classList.add("installed");
-      const title=card.querySelector("h3");
-      const text=card.querySelector("p");
-      const icon=card.querySelector(".install-icon");
-      if(title) title.textContent="App instalada";
-      if(text) text.textContent="Se está ejecutando desde la pantalla de inicio.";
-      if(icon) icon.textContent="✓";
-    }
-    if(homeBtn){
-      homeBtn.textContent="Instalada";
-      homeBtn.disabled=true;
-      homeBtn.setAttribute("aria-disabled","true");
-    }
-    if(headerBtn){
-      headerBtn.textContent="Instalada";
-      headerBtn.disabled=true;
-      headerBtn.setAttribute("aria-disabled","true");
-    }
+    if(card) card.classList.add("hidden");
+    if(headerBtn) headerBtn.classList.add("hidden");
   }else{
+    if(card) card.classList.remove("hidden");
+    if(headerBtn) headerBtn.classList.remove("hidden");
     if(homeBtn) homeBtn.disabled=false;
     if(headerBtn) headerBtn.disabled=false;
   }
@@ -118,6 +103,23 @@ async function triggerInstall(){
   if(choice?.outcome==="accepted")toast("Instalación iniciada");
   else toast("Instalación no realizada");
   document.querySelector("#installDialog")?.close();
+}
+
+
+function quickHelp(title,html){
+  const d=document.querySelector("#quickHelpDialog");
+  if(!d)return;
+  document.querySelector("#quickHelpTitle").textContent=title;
+  document.querySelector("#quickHelpBody").innerHTML=html;
+  d.showModal();
+}
+function helpButton(title,html,label="Ayuda"){
+  return `<button type="button" class="help-dot" aria-label="${esc(label)}" title="${esc(label)}" data-help-title="${esc(title)}" data-help-body="${encodeURIComponent(html)}">?</button>`;
+}
+function bindHelpButtons(root=document){
+  root.querySelectorAll("[data-help-title]").forEach(b=>b.addEventListener("click",()=>{
+    quickHelp(b.dataset.helpTitle,decodeURIComponent(b.dataset.helpBody||""));
+  }));
 }
 
 function show(id){
@@ -165,6 +167,8 @@ async function renderHome(){
  document.querySelector("#homeInstallBtn")?.addEventListener("click",()=>{if(deferredInstallPrompt)triggerInstall();else openInstallDialog();});
  refreshInstallUI();
  document.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
+ document.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo usarla",`<div class="mini-flow"><b>1</b><span>Observar</span><b>2</b><span>Registrar hechos</span><b>3</b><span>Revisar patrones</span><b>4</b><span>Plantear hipótesis</span><b>5</b><span>Planificar apoyos</span><b>6</b><span>Revisar en equipo</span></div><p class="hint">Describe hechos observables. Las hipótesis son provisionales y no son diagnósticos.</p>`));
+ bindHelpButtons(document.querySelector("#home"));
 }
 function formTemplate(d={}){
  const inc=d.inclusion||{};
@@ -174,25 +178,25 @@ function formTemplate(d={}){
  <label class="required">Código pseudónimo del alumnado<input name="codigo" required value="${esc(d.codigo||"")}"><span class="hint">Utiliza un código interno que no permita identificar directamente a la persona.</span></label>
  <label>Curso / grupo<input name="grupo" value="${esc(d.grupo||"")}"></label><label>Profesional que registra (iniciales o alias)<input name="profesional" value="${esc(d.profesional||"")}"></label></div></div>
  <div class="card"><h3>Contexto escolar</h3>${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
- <div class="card"><h3>Factores del entorno</h3>${chips("factores",OPT.factores,d.factores||[],"factoresOtro",d.factoresOtro||"")}
- <p class="hint">En alumnado autista o con otras necesidades de apoyo, observa especialmente barreras sensoriales, predictibilidad, comunicación, comprensión, transiciones y tiempo de procesamiento.</p><p class="hint">Estos indicadores no deben utilizarse para inferir un diagnóstico.</p></div>
+ <div class="card"><h3>Factores del entorno ${helpButton("Factores del entorno","Marca condiciones que pudieron influir: ruido, espera, cambios, comunicación, descanso, etc. No se usan para inferir diagnósticos.")}</h3>${chips("factores",OPT.factores,d.factores||[],"factoresOtro",d.factoresOtro||"")}
+ <p class="hint">En alumnado autista o con otras necesidades de apoyo, observa especialmente barreras sensoriales, predictibilidad, comunicación, comprensión, transiciones y tiempo de procesamiento.</p><p class="hint">No son indicadores diagnósticos.</p></div>
  <div class="card"><h3>A) Antecedente inmediato</h3>${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
  <label>Descripción objetiva del antecedente <button type="button" class="small secondary" data-help="ante">?</button><textarea name="antecedenteDesc">${esc(d.antecedenteDesc||"")}</textarea></label>
  <p class="hint">Adecuado: “Se le indicó guardar el móvil y comenzó a golpear la mesa.” Evita: “Se enfadó porque no quería obedecer.”</p></div>
- <div class="card"><h3>Conducta observada</h3>${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}
+ <div class="card"><h3>Conducta observada ${helpButton("Conducta observada","Describe lo que se vio u oyó. Ejemplo: “Golpeó la mesa tres veces”. Evita etiquetas como “se portó mal”.")}</h3>${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}
  <label class="required">Descripción objetiva de la conducta<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
  <p class="hint">Ejemplo: “Golpea la mesa con la mano abierta durante aproximadamente 20 segundos.” Evita: “Se porta mal.”</p>
  <div class="three"><label>Duración<input type="number" min="0" step="1" name="duracionValor" value="${esc(d.duracionValor||"")}"></label><label>Unidad<select name="duracionUnidad"><option>segundos</option><option ${d.duracionUnidad==="minutos"?"selected":""}>minutos</option></select></label><label>Frecuencia<input type="number" min="0" step="1" name="frecuencia" value="${esc(d.frecuencia||1)}"></label></div>
  <div class="actions"><button type="button" class="secondary small" id="timerStart">Iniciar cronómetro</button><button type="button" class="secondary small" id="timerStop" disabled>Detener</button><span id="timerDisplay" aria-live="polite"></span></div></div>
  <div class="card"><div class="two"><label>Intensidad (1–5)<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${String(d.intensidad||3)===String(n)?"selected":""}>${n}</option>`).join("")}</select></label>
  <label>Riesgo<select name="riesgo" id="riskSelect">${["sin riesgo","leve","moderado","alto"].map(x=>`<option ${d.riesgo===x?"selected":""}>${x}</option>`).join("")}</select></label></div>
- <p class="hint">1 — Muy baja: apenas interfiere. 2 — Baja. 3 — Moderada. 4 — Alta. 5 — Muy alta. La intensidad describe este episodio concreto, no a la persona.</p>
+ <p class="hint">1 — Muy baja: apenas interfiere. 2 — Baja. 3 — Moderada. 4 — Alta. 5 — Muy alta. Describe el episodio, no a la persona.</p>
  <div id="highRisk" class="risk ${d.riesgo==="alto"?"":"hidden"}">Prioriza la seguridad, la dignidad y los protocolos establecidos por el centro. Esta aplicación no es una guía de intervención de emergencia.</div></div>
- <div class="card"><h3>Consecuencia</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
+ <div class="card"><h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
  <label>Descripción adicional<textarea name="consecuenciaDesc">${esc(d.consecuenciaDesc||"")}</textarea></label><p class="hint">Consecuencia significa qué ocurrió inmediatamente después. No implica necesariamente premio, castigo ni causa.</p></div>
  <div class="card"><h3>HIPÓTESIS, NO DIAGNÓSTICO</h3><div class="warning"><strong>Hipótesis funcional provisional:</strong> requiere varios registros, análisis de patrones y revisión en equipo.</div>${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
  <p class="hint">Los datos podrían ser compatibles con una o varias hipótesis; ninguna se presenta como verdadera automáticamente.</p></div>
- <div class="card"><h3>Apoyos aplicados</h3>${chips("apoyos",OPT.apoyos,d.apoyos||[],"apoyosOtro",d.apoyosOtro||"")}
+ <div class="card"><h3>Apoyos aplicados ${helpButton("Apoyos","Registra los apoyos utilizados y si pareció que ayudaron. Esto no demuestra causalidad.")}</h3>${chips("apoyos",OPT.apoyos,d.apoyos||[],"apoyosOtro",d.apoyosOtro||"")}
  <label>¿Pareció ayudar?<select name="apoyoValoracion"><option></option>${["Sí","Parcialmente","No","No valorable"].map(x=>`<option ${d.apoyoValoracion===x?"selected":""}>${x}</option>`).join("")}</select></label><p class="hint">Esta valoración no demuestra causalidad.</p></div>
  <div class="card"><h3>Qué probar la próxima vez</h3>${chips("proxima",OPT.proxima,d.proxima||[],"proximaOtro",d.proximaOtro||"")}<label>Nota breve<textarea name="proximaTexto">${esc(d.proximaTexto||"")}</textarea></label></div>
  <div class="card"><h3>Indicadores de inclusión y contexto</h3><p>Esta sección ayuda a revisar las condiciones del entorno y los apoyos ofrecidos; no es una escala sobre la persona.</p><div class="two">${inclusionFields(inc)}</div></div>
@@ -213,7 +217,7 @@ function recordFromForm(form,base={}){
 }
 async function renderForm(data=null){
  currentEditId=data?.id||null;document.querySelector("#screen-form").innerHTML=formTemplate(data||{});bindSpec(document.querySelector("#screen-form"));
- const f=document.querySelector("#recordForm");document.querySelector("#importFromForm")?.addEventListener("click",openImportDialog);document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
+ const f=document.querySelector("#recordForm");document.querySelector("#importFromForm")?.addEventListener("click",openImportDialog);bindHelpButtons(document.querySelector("#recordForm"));document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
  document.querySelector("#riskSelect").onchange=e=>document.querySelector("#highRisk").classList.toggle("hidden",e.target.value!=="alto");
  document.querySelectorAll("[data-help=ante]").forEach(b=>b.onclick=()=>alert("Registra lo que ocurrió inmediatamente antes utilizando hechos observables y evitando interpretar intenciones."));
  let start=0,tick=null;const disp=document.querySelector("#timerDisplay");
@@ -225,7 +229,7 @@ function quickTemplate(d={}){
  return `<form id="quickForm"><div class="card"><h2>Registro rápido</h2><div class="two"><label class="required">Código pseudónimo<input name="codigo" required value="${esc(d.codigo||"")}"></label><label>Fecha y hora<input type="datetime-local" name="fechaHora" value="${esc(d.fechaHora||nowLocal())}"></label></div>
  <h3>Contexto</h3>${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}<h3>Antecedente</h3>${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
  <h3>Conducta</h3>${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}<label class="required">Descripción objetiva breve<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
- <h3>Consecuencia</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
+ <h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
  <div class="two"><label>Intensidad<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${n===3?"selected":""}>${n}</option>`).join("")}</select></label><label>Riesgo<select name="riesgo">${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div>
  <div class="actions"><button>Guardar registro rápido</button><button type="button" id="quickComplete" class="secondary">Completar detalles</button><button type="button" id="quickCancel" class="secondary">Cancelar</button></div></div></form>`;
 }
@@ -587,7 +591,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
  csvConfirm?.addEventListener("change",()=>{csvBtn.disabled=!(csvConfirm.checked&&pendingCsvRecords.length)});
  csvBtn?.addEventListener("click",async()=>{if(!csvConfirm.checked||!pendingCsvRecords.length)return;for(const r of pendingCsvRecords)await putRecord(r);document.querySelector("#importDialog")?.close();toast(`${pendingCsvRecords.length} registro(s) importados`);pendingCsvRecords=[];await renderList("all");show("list")});
 
- document.querySelector("#menuHome").onclick=()=>{renderHome();show("home")};
+ 
  document.querySelectorAll("[data-bottom-nav]").forEach(b=>b.addEventListener("click",()=>{const d=b.dataset.bottomNav;if(d==="home"){renderHome();show("home")}else navigate(d)}));
  document.querySelector("#reviewProceed").onclick=async e=>{if(!document.querySelector("#reviewConfirm").checked){e.preventDefault();return}const fn=pendingReviewAction;pendingReviewAction=null;setTimeout(async()=>{try{await fn?.()}catch(err){if(err.message!=="none"){console.error("Fallo de exportación",err?.name||"Error");alert("No se ha podido abrir el archivo para guardarlo o compartirlo. Cierra y vuelve a abrir la app; si persiste, revisaremos la integración nativa.")}}},0)};
  document.querySelector("#pinUnlockForm").onsubmit=async e=>{e.preventDefault();const p=prefs(),h=await hashPin(document.querySelector("#unlockPin").value,p.pinSalt);if(h!==p.pinHash){document.querySelector("#pinError").classList.remove("hidden");return}unlocked=true;document.querySelector("#pinDialog").close();pinNext?.();pinNext=null};

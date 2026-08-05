@@ -1541,3 +1541,37 @@ button,.chip,.bottom-nav button{min-height:44px}
 /* V21d — selección múltiple en Patrones descriptivos */
 .stats-filter-stack{display:grid;gap:.65rem}
 #statsCodePicker.student-picker{min-height:310px}
+
+/* V21e — selección compacta de registros para exportar */
+.export-record-toolbar{display:flex;justify-content:space-between;align-items:end;gap:.7rem;flex-wrap:wrap;margin:.6rem 0}
+.export-all{min-height:44px;padding:.55rem .75rem;border:1px solid var(--border);border-radius:16px;background:#f7faf9}
+.export-record-picker-shell{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:.5rem;align-items:stretch}
+.export-record-picker{display:grid;gap:.42rem;min-height:310px;align-content:start}
+.export-record-option{display:grid;grid-template-columns:auto 1fr;gap:.65rem;align-items:center;min-height:54px;padding:.5rem .7rem;border:1px solid var(--border);border-radius:15px;background:#fff;cursor:pointer}
+.export-record-option:has(input:checked){background:#eef7f3;border-color:#9fc4b6}
+.export-record-option strong,.export-record-option small{display:block}.export-record-option small{color:var(--muted);font-size:.75rem;margin-top:.08rem}
+@media(max-width:620px){.export-record-picker-shell{grid-template-columns:38px minmax(0,1fr) 38px}.export-record-picker{min-height:300px}}
+
+/* V21f — gráficos adaptativos */
+.chart-grid{align-items:stretch!important}
+.stat{overflow:hidden!important;min-width:0!important}
+.chart-row{
+  grid-template-columns:minmax(100px,1.2fr) minmax(120px,2fr) 36px!important;
+  align-items:center!important
+}
+.chart-row>span{
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  line-height:1.15!important;
+  overflow-wrap:anywhere!important
+}
+.chart-row>div{min-width:0!important}
+.pie-wrap{align-items:flex-start!important}
+.pie-legend{min-width:0!important;flex:1!important}
+.pie-legend span{white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.2!important}
+@media(max-width:700px){
+  .chart-row{grid-template-columns:minmax(95px,1fr) minmax(100px,1.6fr) 32px!important}
+  .pie-wrap{flex-direction:column!important;align-items:center!important}
+  .pie-legend{width:100%!important}
+}

@@ -1018,18 +1018,58 @@ function docxImageDrawing(rId,name,width=520,height=260){
   return `<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${rId.replace(/\D/g,"")||1}" name="${xmlEsc(name)}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="${xmlEsc(name)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`
 }
 async function canvasPng(kind,title,data){
-  const canvas=document.createElement("canvas");canvas.width=1000;canvas.height=500;const ctx=canvas.getContext("2d");
-  ctx.fillStyle="#ffffff";ctx.fillRect(0,0,1000,500);ctx.fillStyle="#1f4f41";ctx.font="bold 30px system-ui";ctx.fillText(title,35,45);
-  const entries=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,8),palette=["#2d6a58","#5a927e","#8bb6a6","#c5ded4","#496d9b","#8b78a5","#ba8b5b","#a75f5f"];
+  const entries=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const rowH=48;
+  const height=kind==="bar"?Math.max(520,120+entries.length*rowH):560;
+  const canvas=document.createElement("canvas");
+  canvas.width=1200;canvas.height=height;
+  const ctx=canvas.getContext("2d");
+  ctx.fillStyle="#ffffff";ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#1f4f41";ctx.font="bold 32px Arial, sans-serif";
+  ctx.textAlign="left";ctx.fillText(title,42,50);
+
+  const palette=["#2d6a58","#5a927e","#8bb6a6","#c5ded4","#496d9b","#8b78a5","#ba8b5b","#a75f5f","#6f8f80","#9cae9f"];
+
+  const fitLabel=(text,maxWidth)=>{
+    text=String(text??"");
+    if(ctx.measureText(text).width<=maxWidth)return text;
+    let out=text;
+    while(out.length>3&&ctx.measureText(out+"…").width>maxWidth)out=out.slice(0,-1);
+    return out+"…";
+  };
+
   if(kind==="pie"){
-    const total=entries.reduce((s,x)=>s+x[1],0)||1;let ang=-Math.PI/2;
-    entries.forEach(([k,v],i)=>{const a2=ang+Math.PI*2*v/total;ctx.beginPath();ctx.moveTo(270,270);ctx.arc(270,270,170,ang,a2);ctx.closePath();ctx.fillStyle=palette[i%palette.length];ctx.fill();ang=a2});
-    ctx.font="20px system-ui";entries.forEach(([k,v],i)=>{ctx.fillStyle=palette[i%palette.length];ctx.fillRect(520,90+i*43,22,22);ctx.fillStyle="#263b35";ctx.fillText(`${k}: ${v}`,555,108+i*43)});
+    const total=entries.reduce((s,x)=>s+x[1],0)||1;
+    const cx=310,cy=300,R=185;
+    let ang=-Math.PI/2;
+    entries.forEach(([k,v],i)=>{
+      const a2=ang+Math.PI*2*v/total;
+      ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,ang,a2);ctx.closePath();
+      ctx.fillStyle=palette[i%palette.length];ctx.fill();ang=a2;
+    });
+    ctx.font="22px Arial, sans-serif";
+    entries.forEach(([k,v],i)=>{
+      const y=105+i*43;
+      ctx.fillStyle=palette[i%palette.length];ctx.fillRect(590,y-18,22,22);
+      ctx.fillStyle="#263b35";
+      ctx.fillText(fitLabel(`${k}: ${v}`,500),630,y);
+    });
   }else{
-    const max=Math.max(...entries.map(x=>x[1]),1),baseY=440,left=200,barH=36,gap=12,plotW=740;
-    ctx.font="18px system-ui";entries.forEach(([k,v],i)=>{const y=80+i*(barH+gap);ctx.fillStyle="#263b35";ctx.textAlign="right";ctx.fillText(k.slice(0,22),left-12,y+25);ctx.fillStyle=palette[i%palette.length];ctx.fillRect(left,y,plotW*v/max,barH);ctx.textAlign="left";ctx.fillStyle="#263b35";ctx.fillText(String(v),left+plotW*v/max+10,y+25)});
+    ctx.font="20px Arial, sans-serif";
+    const labelW=320,left=360,right=90,plotW=canvas.width-left-right;
+    const max=Math.max(...entries.map(x=>x[1]),1);
+    entries.forEach(([k,v],i)=>{
+      const y=88+i*rowH;
+      ctx.fillStyle="#263b35";ctx.textAlign="right";
+      ctx.fillText(fitLabel(k,labelW),left-18,y+24);
+      ctx.fillStyle=palette[i%palette.length];
+      const w=Math.max(6,plotW*v/max);
+      ctx.fillRect(left,y,w,30);
+      ctx.textAlign="left";ctx.fillStyle="#263b35";
+      ctx.fillText(String(v),Math.min(left+w+12,canvas.width-45),y+24);
+    });
   }
-  return new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error("PNG")),"image/png"))
+  return new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error("PNG")),"image/png"));
 }
 function countField(rs,field){
   const m={};for(const r of rs){const vals=Array.isArray(r[field])?r[field]:[r[field]];for(const v of vals.filter(v=>v!==""&&v!=null))m[String(v)]=(m[String(v)]||0)+1}return m
@@ -1123,7 +1163,20 @@ async function exportStatsXlsx(rs,opt){
   const blob=await buildStatsXlsx(rs,opt),method=await exportUserFile(blob,`patrones-acp-${new Date().toISOString().slice(0,10)}.xlsx`);
   if(method!=="cancelled")toast("XLSX listo")
 }
-function statsPdfSafe(s){return pdfSafe(s)}
+function statsPdfSafe(s){
+  const map={
+    "á":"\\341","é":"\\351","í":"\\355","ó":"\\363","ú":"\\372",
+    "Á":"\\301","É":"\\311","Í":"\\315","Ó":"\\323","Ú":"\\332",
+    "ñ":"\\361","Ñ":"\\321","ü":"\\374","Ü":"\\334",
+    "¿":"\\277","¡":"\\241","º":"\\272","ª":"\\252",
+    "€":" EUR ","·":" - ","—":" - ","–":" - ",
+    "“":"\"","”":"\"","‘":"'","’":"'","…":"..."
+  };
+  return String(s??"")
+    .replace(/[\\()]/g,m=>"\\"+m)
+    .replace(/[áéíóúÁÉÍÓÚñÑüÜ¿¡ºª€·—–“”‘’…]/g,ch=>map[ch]||ch)
+    .replace(/[^\x20-\x7E\\]/g," ");
+}
 function buildStatsPDF(rs,opt={}){
   const W=595,H=842,M=40,CW=W-2*M,s=statsData(rs),brand=[45,106,88],textc=[31,47,42],muted=[91,111,103],line=[218,229,224],pal=[[45,106,88],[92,150,127],[137,184,166],[80,115,157],[156,112,168],[183,126,80],[173,88,88]];
   let pages=[],ops=[],y=H-M,pn=0;const cmd=x=>ops.push(x),fill=c=>cmd(`${rgb(c)} rg`),stroke=c=>cmd(`${rgb(c)} RG`);
@@ -1132,14 +1185,28 @@ function buildStatsPDF(rs,opt={}){
   function page(){if(ops.length)pages.push(ops.join("\n"));ops=[];pn++;rect(0,H-84,W,84,[31,79,65]);t(M,H-42,"REGISTRO ACP ESCOLAR",18,true,[255,255,255]);t(M,H-63,"Patrones descriptivos",10,false,[225,240,234]);t(W-M-70,H-42,`Página ${pn}`,8,false,[225,240,234]);y=H-108}
   function need(h){if(y-h<70)page()}
   function heading(x){need(34);rect(M,y-24,CW,28,[235,245,241]);t(M+10,y-17,x,11,true,[31,79,65]);y-=38}
-  function table(title,map){heading(title);const rows=humanRows(map,10),max=rows[0]?.[1]||1;for(const [k,v] of rows){need(24);t(M,y,k.slice(0,34),8.5,false,textc);rect(M+190,y-8,Math.max(2,(CW-250)*v/max),10,brand);t(W-M-42,y,String(v),8.5,true,textc);y-=22}}
+  function table(title,map){
+    heading(title);
+    const rows=humanRows(map,10),max=rows[0]?.[1]||1;
+    for(const [k,v] of rows){
+      need(26);
+      const raw=String(k);
+      const label=raw.length>30?raw.slice(0,29)+"…":raw;
+      t(M,y,label,8.2,false,textc);
+      rect(M+205,y-8,Math.max(2,(CW-275)*v/max),10,brand);
+      t(W-M-34,y,String(v),8.3,true,textc);
+      y-=24;
+    }
+  }
   page();t(M,y,`Ámbito: ${opt.code&&opt.code!=="all"?opt.code:"Todos los códigos"} · ${rs.length} registros`,10,true,textc);y-=22;t(M,y,`Duración media: ${s.avgDuration} s · Apoyo útil: ${s.supportUseful}%`,9,false,muted);y-=28;
-  if(opt.charts){table("Conductas más registradas",s.conducta);table("Contextos",s.contexto);heading("Distribución de riesgos");const entries=humanRows(s.riesgo,6),total=entries.reduce((a,b)=>a+b[1],0)||1;let ang=0,cx=M+125,cy=y-120,R=80;entries.forEach(([k,v],i)=>{const a2=ang+Math.PI*2*v/total,pts=[[cx,cy]];for(let st=0;st<=18;st++){const a=ang+(a2-ang)*st/18;pts.push([cx+Math.cos(a)*R,cy+Math.sin(a)*R])}fill(pal[i%pal.length]);cmd(`${pts[0][0]} ${pts[0][1]} m ${pts.slice(1).map(p=>`${p[0].toFixed(1)} ${p[1].toFixed(1)} l`).join(" ")} h f`);ang=a2});entries.forEach(([k,v],i)=>{rect(M+255,y-55-i*24,12,12,pal[i%pal.length]);t(M+274,y-51-i*24,`${k}: ${v}`,8.5,false,textc)});y-=190}
+  if(opt.charts){table("Conductas más registradas",s.conducta);table("Contextos",s.contexto);heading("Distribución de riesgos");const entries=humanRows(s.riesgo,6),total=entries.reduce((a,b)=>a+b[1],0)||1;let ang=0,cx=M+105,cy=y-105,R=68;entries.forEach(([k,v],i)=>{const a2=ang+Math.PI*2*v/total,pts=[[cx,cy]];for(let st=0;st<=18;st++){const a=ang+(a2-ang)*st/18;pts.push([cx+Math.cos(a)*R,cy+Math.sin(a)*R])}fill(pal[i%pal.length]);cmd(`${pts[0][0]} ${pts[0][1]} m ${pts.slice(1).map(p=>`${p[0].toFixed(1)} ${p[1].toFixed(1)} l`).join(" ")} h f`);ang=a2});entries.forEach(([k,v],i)=>{rect(M+255,y-55-i*24,12,12,pal[i%pal.length]);t(M+274,y-51-i*24,`${k}: ${v}`,8.5,false,textc)});y-=170}
   heading("Registros por código pseudónimo");for(const [k,v] of humanRows(s.codes,30)){need(20);t(M,y,k,9,true,textc);t(M+150,y,String(v),9,false,textc);y-=18}
   if(opt.details){heading("Detalle de registros");for(const r of rs){need(42);t(M,y,`${r.codigo} · ${new Date(r.fechaHora).toLocaleDateString("es-ES")} · ${r.riesgo||"—"}`,8.5,true,textc);t(M,y-14,`Contexto: ${(r.contexto||[]).join(", ").slice(0,72)}`,7.8,false,muted);t(M,y-27,`Conducta: ${(r.conducta||[]).join(", ").slice(0,72)}`,7.8,false,muted);y-=42}}
   t(M,38,"Autor: Carlos Tejero · CC BY-NC-SA 4.0 · Datos locales. No diagnóstico.",7.2,false,muted);
   if(ops.length)pages.push(ops.join("\n"));
-  let objs=[];const add=o=>{objs.push(o);return objs.length},f1=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'),f2=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');let pids=[];for(const ps of pages){const cid=add(`<< /Length ${ps.length} >>\nstream\n${ps}\nendstream`),pid=add("PENDING");pids.push({pid,cid})}const pagesId=add("PAGES");for(const p of pids)objs[p.pid-1]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${p.cid} 0 R >>`;objs[pagesId-1]=`<< /Type /Pages /Kids [${pids.map(p=>`${p.pid} 0 R`).join(" ")}] /Count ${pids.length} >>`;const catalog=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);let pdf="%PDF-1.4\n",offs=[0];for(let i=0;i<objs.length;i++){offs.push(pdf.length);pdf+=`${i+1} 0 obj\n${objs[i]}\nendobj\n`}const x=pdf.length;pdf+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`;for(let i=1;i<offs.length;i++)pdf+=`${String(offs[i]).padStart(10,"0")} 00000 n \n`;pdf+=`trailer\n<< /Size ${objs.length+1} /Root ${catalog} 0 R >>\nstartxref\n${x}\n%%EOF`;return new Blob([new TextEncoder().encode(pdf)],{type:"application/pdf"})
+  let objs=[];const add=o=>{objs.push(o);return objs.length},f1=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'),f2=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');let pids=[];for(const ps of pages){const cid=add(`<< /Length ${ps.length} >>\nstream\n${ps}\nendstream`),pid=add("PENDING");pids.push({pid,cid})}const pagesId=add("PAGES");for(const p of pids)objs[p.pid-1]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${p.cid} 0 R >>`;objs[pagesId-1]=`<< /Type /Pages /Kids [${pids.map(p=>`${p.pid} 0 R`).join(" ")}] /Count ${pids.length} >>`;const catalog=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);let pdf="%PDF-1.4\n",offs=[0];for(let i=0;i<objs.length;i++){offs.push(pdf.length);pdf+=`${i+1} 0 obj\n${objs[i]}\nendobj\n`}const x=pdf.length;pdf+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`;for(let i=1;i<offs.length;i++)pdf+=`${String(offs[i]).padStart(10,"0")} 00000 n \n`;pdf+=`trailer\n<< /Size ${objs.length+1} /Root ${catalog} 0 R >>\nstartxref\n${x}\n%%EOF`;const bytes=new Uint8Array(pdf.length);
+  for(let i=0;i<pdf.length;i++)bytes[i]=pdf.charCodeAt(i)&255;
+  return new Blob([bytes],{type:"application/pdf"})
 }
 async function exportStatsPDF(rs,opt){
   const method=await exportUserFile(buildStatsPDF(rs,opt),`patrones-acp-${new Date().toISOString().slice(0,10)}.pdf`);if(method!=="cancelled")toast("PDF listo")
@@ -1468,21 +1535,47 @@ async function addDemo(){
 }
 function oldCount(rs){const r=prefs().retention;if(r==="manual"||!r)return 0;const cut=Date.now()-Number(r)*86400000;return rs.filter(x=>new Date(x.fechaHora).getTime()<cut).length}
 
-function renderMore(){
- document.querySelector("#screen-settings").innerHTML=`<div class="card"><span class="app-kicker">Más opciones</span><h2>Herramientas y configuración</h2>
- <div class="more-grid">
-  <button data-more="report"><strong>Informe / Exportar</strong><span>PDF, CSV y correo</span></button>
-  <button data-more="quick"><strong>Registro rápido</strong><span>Registro rápido</span></button>
-  <button data-more="help"><strong>Ayuda</strong><span>ABC, ACP y ejemplos</span></button>
-  <button data-more="privacy"><strong>Privacidad y datos</strong><span>Arquitectura local-first</span></button>
-  <button data-more="about"><strong>Acerca de</strong><span>Acerca de</span></button>
-  <button data-more="settings"><strong>Configuración</strong><span>PIN y revisión de datos</span></button>
- </div></div>`;
- document.querySelectorAll("[data-more]").forEach(b=>b.onclick=async()=>{
-   const d=b.dataset.more;
-   if(d==="settings"){await renderSettings();show("settings")} else navigate(d)
- });
- show("settings");
+async function renderExport(){
+ const all=await allRecords();
+ document.querySelector("#screen-export").innerHTML=`<div class="card screen-card">${screenCloseButton()}
+   <h2>Informe / Exportar</h2>
+   <p class="hint">Selecciona registros concretos o todos.</p>
+   <div class="export-record-toolbar">
+     <label class="checkline export-all"><input id="exportAllRecords" type="checkbox"><strong>Todos</strong></label>
+     <label>Orden<select id="exportRecordOrder"><option value="recent">Más recientes primero</option><option value="oldest">Más antiguos primero</option></select></label>
+   </div>
+   <div class="export-record-picker-shell">
+     <button id="exportPrevRecords" class="student-arrow" type="button" aria-label="Registros anteriores">↑</button>
+     <div id="exportRecordPicker" class="export-record-picker"></div>
+     <button id="exportNextRecords" class="student-arrow" type="button" aria-label="Registros siguientes">↓</button>
+   </div>
+   <div id="exportRecordSummary" class="student-selection-summary"></div>
+   <div class="actions"><button id="exportCsvBtn">CSV</button><button id="exportPdfBtn">PDF</button><button id="exportDocxBtn">DOCX</button><button id="exportMailBtn">Correo</button></div>
+ </div>`;
+
+ const PAGE=5; let page=0; let selected=new Set();
+ const ordered=()=>[...all].sort((a,b)=>document.querySelector("#exportRecordOrder").value==="oldest"?new Date(a.fechaHora)-new Date(b.fechaHora):new Date(b.fechaHora)-new Date(a.fechaHora));
+ const maxPage=()=>Math.max(0,Math.ceil(all.length/PAGE)-1);
+ const summary=()=>document.querySelector("#exportRecordSummary").textContent=selected.size?`${selected.size} de ${all.length} registro(s) seleccionados`:"Ningún registro seleccionado";
+ const renderPicker=()=>{
+   const slice=ordered().slice(page*PAGE,page*PAGE+PAGE);
+   document.querySelector("#exportRecordPicker").innerHTML=slice.length?slice.map(r=>`<label class="export-record-option"><input type="checkbox" value="${esc(r.id)}" ${selected.has(r.id)?"checked":""}><span><strong>${esc(r.codigo||"Sin código")}</strong><small>${esc(new Date(r.fechaHora).toLocaleString("es-ES"))}${r.demo?" · DEMO":""}</small></span></label>`).join(""):'<p class="hint">No hay registros.</p>';
+   document.querySelectorAll("#exportRecordPicker input").forEach(ch=>ch.onchange=()=>{ch.checked?selected.add(ch.value):selected.delete(ch.value);document.querySelector("#exportAllRecords").checked=selected.size===all.length&&all.length>0;summary()});
+   document.querySelector("#exportPrevRecords").disabled=page===0;
+   document.querySelector("#exportNextRecords").disabled=page>=maxPage();
+   summary();
+ };
+ document.querySelector("#exportPrevRecords").onclick=()=>{if(page>0){page--;renderPicker()}};
+ document.querySelector("#exportNextRecords").onclick=()=>{if(page<maxPage()){page++;renderPicker()}};
+ document.querySelector("#exportRecordOrder").onchange=()=>{page=0;renderPicker()};
+ document.querySelector("#exportAllRecords").onchange=e=>{selected=e.target.checked?new Set(all.map(r=>r.id)):new Set();renderPicker()};
+ const chosen=()=>ordered().filter(r=>selected.has(r.id));
+ const need=()=>{const rs=chosen();if(!rs.length){toast("Selecciona al menos un registro");return null}return rs};
+ document.querySelector("#exportCsvBtn").onclick=async()=>{const rs=need();if(rs)await reviewGate(async()=>exportStatsCSV(rs))};
+ document.querySelector("#exportPdfBtn").onclick=async()=>{const rs=need();if(rs)await reviewGate(async()=>exportStatsPDF(rs,{charts:false,details:true,code:"seleccion"}))};
+ document.querySelector("#exportDocxBtn").onclick=async()=>{const rs=need();if(rs)await reviewGate(async()=>exportStatsDOCX(rs,{charts:false,details:true,code:"seleccion"}))};
+ document.querySelector("#exportMailBtn").onclick=()=>{const rs=need();if(rs)shareByEmail(rs)};
+ renderPicker(); bindScreenClose(document.querySelector("#screen-export"));
 }
 
 async function navigate(dest){

@@ -49,6 +49,26 @@ function inclusionFields(data={}){
 async function openDB(){
  return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(STORE)){const s=d.createObjectStore(STORE,{keyPath:"id"});s.createIndex("fechaHora","fechaHora");s.createIndex("codigo","codigo");s.createIndex("riesgo","riesgo")}if(!d.objectStoreNames.contains(DOC_STORE)){d.createObjectStore(DOC_STORE,{keyPath:"id"})}};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})
 }
+
+async function finishSavedRecord(record){
+  await putRecord(record);
+  const saved=await getRecord(record.id);
+  if(!saved)throw new Error("SAVE_VERIFY_FAILED");
+  lastSavedRecordId=saved.id;
+  currentEditId=null;
+  toast("Registro guardado");
+  announceA11y("Registro guardado correctamente.");
+  await renderList("all");
+  show("list");
+  setTimeout(()=>{
+    const item=document.querySelector(`#recordList [data-id="${CSS.escape(saved.id)}"]`);
+    if(item){
+      item.classList.add("just-saved");
+      item.scrollIntoView({behavior:"smooth",block:"center"});
+      setTimeout(()=>item.classList.remove("just-saved"),2500);
+    }
+  },120);
+}
 async function putRecord(rec){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).put(rec);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
 async function getRecord(id){return new Promise((res,rej)=>{const r=db.transaction(STORE).objectStore(STORE).get(id);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
 
@@ -339,22 +359,33 @@ function bindScreenClose(root){
 }
 
 
+
+function accordionBar(title,helpTitle="",helpBody=""){
+  return `<div class="accordion-bar">
+    ${helpTitle?`<button type="button" class="help-dot accordion-help" aria-label="Ayuda: ${esc(title)}" data-help-title="${esc(helpTitle)}" data-help-body="${encodeURIComponent(helpBody)}">?</button>`:`<span class="accordion-help-spacer" aria-hidden="true"></span>`}
+    <button type="button" class="accordion-toggle" aria-expanded="false">
+      <span class="accordion-title">${esc(title)}</span>
+      <span class="accordion-chevron" aria-hidden="true">⌄</span>
+    </button>
+  </div>`;
+}
+function accordionSection(slug,title,body,helpTitle="",helpBody=""){
+  return `<section class="collapsible-field" data-section="${esc(slug)}">${accordionBar(title,helpTitle,helpBody)}<div class="collapsible-body">${body}</div></section>`;
+}
 function bindCollapsibleFieldsets(root){
   if(!root)return;
   root.querySelectorAll(".collapsible-field").forEach(box=>{
-    const head=box.querySelector(".collapsible-head");
+    const toggle=box.querySelector(".accordion-toggle,.collapsible-head");
     const body=box.querySelector(".collapsible-body");
-    if(!head||!body||head.dataset.collapseBound==="1")return;
+    if(!toggle||!body||toggle.dataset.collapseBound==="1")return;
+    toggle.dataset.collapseBound="1";
     if(!body.id)body.id=`accordion-${Math.random().toString(36).slice(2,9)}`;
-    head.setAttribute("aria-controls",body.id);
+    toggle.setAttribute("aria-controls",body.id);
     body.setAttribute("role","region");
-    head.dataset.collapseBound="1";
-    head.addEventListener("click",e=>{
-      // A contextual help control inside a section must not toggle the accordion.
-      if(e.target.closest(".help-dot"))return;
+    toggle.addEventListener("click",()=>{
       const open=!box.classList.contains("open");
       box.classList.toggle("open",open);
-      head.setAttribute("aria-expanded",String(open));
+      toggle.setAttribute("aria-expanded",String(open));
     });
   });
 }
@@ -517,86 +548,44 @@ async function renderHome(){
 function formTemplate(d={}){
  const inc=d.inclusion||{};
  return `<form id="recordForm">
- <div class="card screen-card">${screenCloseButton()}<div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2>${currentEditId?"":''}</div><p class="hint">Usa un código pseudónimo.</p>
- <div class="two"><label class="required">Fecha y hora<input name="fechaHora" type="datetime-local" required value="${esc(d.fechaHora||nowLocal())}"></label>
- <label class="required">Código pseudónimo
-  <div class="code-row"><input name="codigo" required readonly aria-readonly="true" value="${esc(d.codigo||"")}"><button type="button" class="secondary code-pick" id="chooseCodeBtn">Elegir / crear</button></div>
-  <span class="hint">No uses nombre, iniciales ni datos personales.</span>
-</label>
- <label>Curso / grupo<input name="grupo" value="${esc(d.grupo||"")}"></label><label>Profesional que registra (iniciales o alias)<input name="profesional" value="${esc(d.profesional||"")}"></label></div></div>
- <div class="card"><section class="collapsible-field" data-section="contexto">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Contexto escolar <button type="button" class="help-dot" data-help-title="Contexto escolar" data-help-body="Selecciona dónde ocurrió la situación. Puedes marcar varias opciones.">?</button></h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
- <div class="card"></div>
-</section><section class="collapsible-field" data-section="factores">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Factores del entorno ${helpButton("Factores del entorno","Marca condiciones que pudieron influir: ruido, espera, cambios, comunicación, descanso, etc. No se usan para inferir diagnósticos.")}</h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">${chips("factores",OPT.factores,d.factores||[],"factoresOtro",d.factoresOtro||"")}
- <p class="hint">Observa barreras del entorno y necesidades de apoyo.</p><p class="hint"></p></div>
- <div class="card"></div>
-</section><section class="collapsible-field" data-section="antecedente">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Antecedente inmediato <button type="button" class="help-dot" data-help-title="Antecedente" data-help-body="Qué ocurrió justo antes. Describe hechos observables.">?</button></h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
- <label>Descripción objetiva del antecedente <button type="button" class="small secondary" data-help="ante">?</button><textarea name="antecedenteDesc">${esc(d.antecedenteDesc||"")}</textarea></label>
- <p class="hint">Describe hechos, no intenciones.</p></div>
- <div class="card"></div>
-</section><section class="collapsible-field" data-section="conducta">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Conducta observada ${helpButton("Conducta observada","Describe lo que se vio u oyó. Ejemplo: “Golpeó la mesa tres veces”. Evita etiquetas como “se portó mal”.")}</h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}
- <label class="required">Descripción objetiva de la conducta<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
- <p class="hint">Describe hechos observables.</p>
- <div class="three"><label>Duración<input type="number" min="0" step="1" name="duracionValor" value="${esc(d.duracionValor||"")}"></label><label>Unidad<select name="duracionUnidad"><option>segundos</option><option ${d.duracionUnidad==="minutos"?"selected":""}>minutos</option></select></label><label>Frecuencia<input type="number" min="0" step="1" name="frecuencia" value="${esc(d.frecuencia||1)}"></label></div>
- </div>
-</section><div class="actions"><button type="button" class="secondary small" id="timerStart">Iniciar cronómetro</button><button type="button" class="secondary small" id="timerStop" disabled>Detener</button><span id="timerDisplay" aria-live="polite"></span></div></div>
- <div class="card"><div class="two"><label>Intensidad (1–5)<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${String(d.intensidad||3)===String(n)?"selected":""}>${n}</option>`).join("")}</select></label>
- <label>Riesgo<select name="riesgo" id="riskSelect">${["sin riesgo","leve","moderado","alto"].map(x=>`<option ${d.riesgo===x?"selected":""}>${x}</option>`).join("")}</select></label></div>
- <p class="hint">1 — Muy baja: apenas interfiere. 2 — Baja. 3 — Moderada. 4 — Alta. 5 — Muy alta. Describe el episodio, no a la persona.</p>
- <div id="highRisk" class="risk ${d.riesgo==="alto"?"":"hidden"}">Prioriza la seguridad, la dignidad y los protocolos establecidos por el centro. Esta aplicación no es una guía de intervención de emergencia.</div></div>
- <div class="card"><section class="collapsible-field" data-section="consecuencia">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
- <label>Descripción adicional<textarea name="consecuenciaDesc">${esc(d.consecuenciaDesc||"")}</textarea></label><p class="hint">Qué ocurrió después.</p></div>
- <div class="card">
-<section class="collapsible-field" data-section="hipotesis">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Hipótesis funcional provisional</h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">
-    <div class="section-help-line">
-      <span>Explicación provisional, no diagnóstico</span>
-      ${helpButton("Hipótesis, no diagnóstico","Selecciona una o varias hipótesis provisionales. Deben revisarse con varios registros y en equipo.")}
+  <div class="card screen-card">${screenCloseButton()}
+    <div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2></div>
+    <p class="hint">El código pseudónimo es imprescindible. El resto puede completarse progresivamente.</p>
+    <div class="two">
+      <label class="required">Código pseudónimo
+        <div class="code-row"><input name="codigo" required readonly aria-readonly="true" value="${esc(d.codigo||"")}"><button type="button" class="secondary code-pick" id="chooseCodeBtn">Elegir / crear</button></div>
+      </label>
+      <label>Fecha y hora<input name="fechaHora" type="datetime-local" value="${esc(d.fechaHora||nowLocal())}"></label>
+      <label>Curso / grupo<input name="grupo" value="${esc(d.grupo||"")}"></label>
+      <label>Profesional que registra (alias)<input name="profesional" value="${esc(d.profesional||"")}"></label>
     </div>
-    ${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
-    <p class="hint">Hipótesis provisional. Revisar con varios registros y en equipo.</p>
   </div>
-</section>
-<h3>Apoyos aplicados ${helpButton("Apoyos","Registra los apoyos utilizados y si pareció que ayudaron. Esto no demuestra causalidad.")}</h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">${chips("apoyos",OPT.apoyos,d.apoyos||[],"apoyosOtro",d.apoyosOtro||"")}
- <label>¿Pareció ayudar?<select name="apoyoValoracion"><option></option>${["Sí","Parcialmente","No","No valorable"].map(x=>`<option ${d.apoyoValoracion===x?"selected":""}>${x}</option>`).join("")}</select></label><p class="hint">No demuestra causalidad.</p></div>
- <div class="card"></div>
-</section><section class="collapsible-field" data-section="proxima">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Próxima vez <button type="button" class="help-dot" data-help-title="Próxima vez" data-help-body="Anota ajustes o apoyos que conviene probar en una situación similar.">?</button></h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">${chips("proxima",OPT.proxima,d.proxima||[],"proximaOtro",d.proximaOtro||"")}<label>Nota breve<textarea name="proximaTexto">${esc(d.proximaTexto||"")}</textarea></label></div>
- <div class="card"></div>
-</section><section class="collapsible-field" data-section="inclusion">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Inclusión y contexto <button type="button" class="help-dot" data-help-title="Inclusión y contexto" data-help-body="Revisa accesibilidad, participación, predictibilidad, comunicación y dignidad. No evalúa a la persona.">?</button></h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body"><p>Revisa el entorno y los apoyos.</p><div class="two">${inclusionFields(inc)}</div></div>
- <div class="card actions"><button type="submit">${currentEditId?"Guardar cambios":"Guardar registro"}</button><button type="button" class="secondary" id="cancelForm">Cancelar</button></div></div>
-</section></form>`;
+
+  <div class="card form-accordion-card">
+    ${accordionSection("contexto","Contexto escolar",chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||""),"Contexto escolar","Selecciona dónde ocurrió la situación. Puedes marcar varias opciones.")}
+    ${accordionSection("factores","Factores del entorno",chips("factores",OPT.factores,d.factores||[],"factoresOtro",d.factoresOtro||""),"Factores del entorno","Marca condiciones del entorno que pudieron influir.")}
+    ${accordionSection("antecedente","Antecedente inmediato",`${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}<label>Descripción objetiva<textarea name="antecedenteDesc">${esc(d.antecedenteDesc||"")}</textarea></label>`,"Antecedente inmediato","Qué ocurrió justo antes. Describe hechos observables.")}
+    ${accordionSection("conducta","Conducta observada",`${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}<label>Descripción objetiva<textarea name="conductaDesc">${esc(d.conductaDesc||"")}</textarea></label><div class="three"><label>Duración<input type="number" min="0" step="1" name="duracionValor" value="${esc(d.duracionValor||"")}"></label><label>Unidad<select name="duracionUnidad"><option>segundos</option><option ${d.duracionUnidad==="minutos"?"selected":""}>minutos</option></select></label><label>Frecuencia<input type="number" min="0" step="1" name="frecuencia" value="${esc(d.frecuencia||1)}"></label></div><div class="actions compact-actions"><button type="button" class="secondary small" id="timerStart">Iniciar cronómetro</button><button type="button" class="secondary small" id="timerStop" disabled>Detener</button><span id="timerDisplay" aria-live="polite"></span></div>`,"Conducta observada","Describe lo que se vio u oyó, sin atribuir intenciones.")}
+    ${accordionSection("consecuencia","Consecuencia",`${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}<label>Descripción adicional<textarea name="consecuenciaDesc">${esc(d.consecuenciaDesc||"")}</textarea></label>`,"Consecuencia","Qué ocurrió inmediatamente después. No implica causa.")}
+    ${accordionSection("hipotesis","Hipótesis funcional provisional",`${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}<p class="hint">Hipótesis provisional. Revisar con varios registros y en equipo.</p>`,"Hipótesis, no diagnóstico","Explicación provisional que debe revisarse con varios registros y en equipo.")}
+    ${accordionSection("apoyos","Apoyos aplicados",`${chips("apoyos",OPT.apoyos,d.apoyos||[],"apoyosOtro",d.apoyosOtro||"")}<label>¿Pareció ayudar?<select name="apoyoValoracion"><option></option>${["Sí","Parcialmente","No","No valorable"].map(x=>`<option ${d.apoyoValoracion===x?"selected":""}>${x}</option>`).join("")}</select></label>`,"Apoyos aplicados","Marca los apoyos utilizados y si pareció que ayudaron.")}
+    ${accordionSection("proxima","Próxima vez",`${chips("proxima",OPT.proxima,d.proxima||[],"proximaOtro",d.proximaOtro||"")}<label>Nota breve<textarea name="proximaTexto">${esc(d.proximaTexto||"")}</textarea></label>`,"Próxima vez","Anota apoyos o ajustes que conviene probar en una situación similar.")}
+    ${accordionSection("inclusion","Inclusión y contexto",`<p class="hint">Revisa el entorno y los apoyos.</p><div class="two">${inclusionFields(inc)}</div>`,"Inclusión y contexto","Revisa accesibilidad, participación, predictibilidad, comunicación y dignidad.")}
+  </div>
+
+  <div class="card">
+    <div class="two">
+      <label>Intensidad (1–5)<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${String(d.intensidad||3)===String(n)?"selected":""}>${n}</option>`).join("")}</select></label>
+      <label>Riesgo<select name="riesgo" id="riskSelect">${["sin riesgo","leve","moderado","alto"].map(x=>`<option ${d.riesgo===x?"selected":""}>${x}</option>`).join("")}</select></label>
+    </div>
+    <div id="highRisk" class="risk ${d.riesgo==="alto"?"":"hidden"}">Prioriza la seguridad, la dignidad y los protocolos establecidos por el centro.</div>
+  </div>
+
+  <div class="card actions">
+    <button type="submit">${currentEditId?"Guardar cambios":"Guardar registro"}</button>
+    <button type="button" class="secondary" id="cancelForm">Cancelar</button>
+  </div>
+ </form>`;
 }
 function bindSpec(root=document){
  root.querySelectorAll("[data-chip-group]").forEach(g=>g.addEventListener("change",()=>{const name=g.dataset.chipGroup, spec=root.querySelector(`[data-spec-for="${CSS.escape(name)}"]`);if(!spec)return;const on=[...g.querySelectorAll("input:checked")].some(i=>["otro","otra","otros","similar","no incluido"].includes(i.value.toLowerCase()));spec.classList.toggle("hidden",!on)}))
@@ -612,84 +601,65 @@ function recordFromForm(form,base={}){
  proxima:arrayVal(fd,"proxima"),proximaOtro:one(fd,"proximaOtro"),proximaTexto:one(fd,"proximaTexto"),inclusion:inc,updatedAt:new Date().toISOString(),createdAt:base.createdAt||new Date().toISOString(),demo:!!base.demo,quick:!!base.quick}
 }
 async function renderForm(data=null){
- currentEditId=data?.id||null;document.querySelector("#screen-form").innerHTML=formTemplate(data||{});bindSpec(document.querySelector("#screen-form"));
- const f=document.querySelector("#recordForm");document.querySelector("#chooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);ensureHypothesisOtherReveal(f);bindHelpButtons(document.querySelector("#recordForm"));document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
- document.querySelector("#riskSelect").onchange=e=>document.querySelector("#highRisk").classList.toggle("hidden",e.target.value!=="alto");
- document.querySelectorAll("[data-help=ante]").forEach(b=>b.onclick=()=>alert("Registra lo que ocurrió inmediatamente antes utilizando hechos observables y evitando interpretar intenciones."));
- let start=0,tick=null;const disp=document.querySelector("#timerDisplay");
- document.querySelector("#timerStart").onclick=()=>{start=Date.now();document.querySelector("#timerStart").disabled=true;document.querySelector("#timerStop").disabled=false;tick=setInterval(()=>disp.textContent=`${Math.floor((Date.now()-start)/1000)} s`,1000)};
- document.querySelector("#timerStop").onclick=()=>{clearInterval(tick);const secs=Math.max(1,Math.floor((Date.now()-start)/1000));f.elements.duracionValor.value=secs;f.elements.duracionUnidad.value="segundos";disp.textContent=`${secs} s`;document.querySelector("#timerStart").disabled=false;document.querySelector("#timerStop").disabled=true};
+ currentEditId=data?.id||null;
+ document.querySelector("#screen-form").innerHTML=formTemplate(data||{});
+ const root=document.querySelector("#screen-form"),f=document.querySelector("#recordForm");
+ bindSpec(root);attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);bindHelpButtons(f);bindScreenClose(root);
+ document.querySelector("#chooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));
+ document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;goHomeSafe()};
+ const risk=document.querySelector("#riskSelect");if(risk)risk.onchange=e=>document.querySelector("#highRisk").classList.toggle("hidden",e.target.value!=="alto");
+ let startTime=0,tick=null;const disp=document.querySelector("#timerDisplay"),startBtn=document.querySelector("#timerStart"),stopBtn=document.querySelector("#timerStop");
+ if(startBtn)startBtn.onclick=()=>{startTime=Date.now();startBtn.disabled=true;stopBtn.disabled=false;tick=setInterval(()=>disp.textContent=`${Math.floor((Date.now()-startTime)/1000)} s`,1000)};
+ if(stopBtn)stopBtn.onclick=()=>{clearInterval(tick);const secs=Math.max(1,Math.floor((Date.now()-startTime)/1000));f.elements.duracionValor.value=secs;f.elements.duracionUnidad.value="segundos";disp.textContent=`${secs} s`;startBtn.disabled=false;stopBtn.disabled=true};
  f.onsubmit=async e=>{
    e.preventDefault();
    if(!validateRequiredRecordFields(f))return;
-   const base=currentEditId?await getRecord(currentEditId):{};
-   const rec=recordFromForm(f,base);
-   await putRecord(rec);
-   lastSavedRecordId=rec.id;
-   currentEditId=null;
-   toast("Registro guardado");
-   await renderList("all");
-   show("list");
-   setTimeout(()=>{
-     const item=document.querySelector(`#listWrap [data-id="${CSS.escape(rec.id)}"]`);
-     if(item){item.classList.add("just-saved");item.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>item.classList.remove("just-saved"),2500)}
-   },100);
- }
+   try{
+     const base=currentEditId?await getRecord(currentEditId):{};
+     const rec=recordFromForm(f,base);
+     await finishSavedRecord(rec);
+   }catch(err){
+     console.error("Error al guardar:",err);
+     toast("No se pudo guardar el registro");
+   }
+ };
 }
 function quickTemplate(d={}){
- return `<form id="quickForm"><div class="card screen-card">${screenCloseButton()}<h2>Registro rápido</h2><div class="two"><label class="required">Código pseudónimo<div class="code-row"><input name="codigo" required readonly value="${esc(d.codigo||"")}"><button type="button" id="quickChooseCodeBtn" class="secondary">Elegir / crear</button></div></label><label>Fecha y hora<input type="datetime-local" name="fechaHora" value="${esc(d.fechaHora||nowLocal())}"></label></div>
- <section class="collapsible-field" data-section="qcontexto">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Contexto</h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
-</section><section class="collapsible-field" data-section="qantecedente">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Antecedente</h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
- </div>
-</section><section class="collapsible-field" data-section="qconducta">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Conducta</h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}<label class="required">Descripción objetiva breve<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
- </div>
-</section>
-<section class="collapsible-field" data-section="qconsecuencia">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Consecuencia</h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body">
-    <div class="section-help-line"><span>Qué ocurrió justo después</span>${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</div>
-    ${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
+ return `<form id="quickForm">
+  <div class="card screen-card">${screenCloseButton()}
+    <h2>Registro rápido</h2>
+    <div class="two">
+      <label class="required">Código pseudónimo<div class="code-row"><input name="codigo" required readonly value="${esc(d.codigo||"")}"><button type="button" id="quickChooseCodeBtn" class="secondary">Elegir / crear</button></div></label>
+      <label>Fecha y hora<input type="datetime-local" name="fechaHora" value="${esc(d.fechaHora||nowLocal())}"></label>
+    </div>
   </div>
-</section>
- <div class="two quick-critical"><label>Intensidad<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${n===3?"selected":""}>${n}</option>`).join("")}</select></label><label>Riesgo<select name="riesgo">${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div>
- <div class="actions"><button>Guardar registro rápido</button><button type="button" id="quickComplete" class="secondary">Completar detalles</button><button type="button" id="quickCancel" class="secondary">Cancelar</button></div></div></form>`;
+  <div class="card form-accordion-card">
+    ${accordionSection("qcontexto","Contexto",chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||""),"Contexto","Dónde ocurrió la situación.")}
+    ${accordionSection("qantecedente","Antecedente",chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||""),"Antecedente","Qué ocurrió justo antes.")}
+    ${accordionSection("qconducta","Conducta",`${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}<label>Descripción objetiva breve<textarea name="conductaDesc">${esc(d.conductaDesc||"")}</textarea></label>`,"Conducta observada","Qué se vio u oyó.")}
+    ${accordionSection("qconsecuencia","Consecuencia",chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||""),"Consecuencia","Qué ocurrió inmediatamente después.")}
+  </div>
+  <div class="card"><div class="two quick-critical"><label>Intensidad<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${n===3?"selected":""}>${n}</option>`).join("")}</select></label><label>Riesgo<select name="riesgo">${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div></div>
+  <div class="card actions"><button type="submit">Guardar registro rápido</button><button type="button" id="quickComplete" class="secondary">Completar detalles</button><button type="button" id="quickCancel" class="secondary">Cancelar</button></div>
+ </form>`;
 }
 function quickToRecord(form){
- const fd=new FormData(form);return {id:uid(),fechaHora:one(fd,"fechaHora"),codigo:one(fd,"codigo"),grupo:"",profesional:"",contexto:arrayVal(fd,"contexto"),contextoOtro:one(fd,"contextoOtro"),factores:[],factoresOtro:"",
- antecedente:arrayVal(fd,"antecedente"),antecedenteOtro:one(fd,"antecedenteOtro"),antecedenteDesc:"",conducta:arrayVal(fd,"conducta"),conductaOtro:one(fd,"conductaOtro"),conductaDesc:one(fd,"conductaDesc"),duracionValor:0,duracionUnidad:"segundos",frecuencia:1,intensidad:Number(one(fd,"intensidad")),riesgo:one(fd,"riesgo"),consecuencia:arrayVal(fd,"consecuencia"),consecuenciaOtro:one(fd,"consecuenciaOtro"),consecuenciaDesc:"",hipotesis:[],hipotesisOtro:"",apoyos:[],apoyosOtro:"",apoyoValoracion:"",proxima:[],proximaOtro:"",proximaTexto:"",inclusion:{},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),demo:false,quick:true}
+ const fd=new FormData(form);return {id:uid(),fechaHora:one(fd,"fechaHora")||nowLocal(),codigo:one(fd,"codigo"),grupo:"",profesional:"",contexto:arrayVal(fd,"contexto"),contextoOtro:one(fd,"contextoOtro"),factores:[],factoresOtro:"",
+ antecedente:arrayVal(fd,"antecedente"),antecedenteOtro:one(fd,"antecedenteOtro"),antecedenteDesc:"",conducta:arrayVal(fd,"conducta"),conductaOtro:one(fd,"conductaOtro"),conductaDesc:one(fd,"conductaDesc"),duracionValor:0,duracionUnidad:"segundos",frecuencia:1,intensidad:Number(one(fd,"intensidad")||3),riesgo:one(fd,"riesgo")||"sin riesgo",consecuencia:arrayVal(fd,"consecuencia"),consecuenciaOtro:one(fd,"consecuenciaOtro"),consecuenciaDesc:"",hipotesis:[],hipotesisOtro:"",apoyos:[],apoyosOtro:"",apoyoValoracion:"",proxima:[],proximaOtro:"",proximaTexto:"",inclusion:{},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),demo:false,quick:true}
 }
 function renderQuick(){
- document.querySelector("#screen-quick").innerHTML=quickTemplate();bindSpec(document.querySelector("#screen-quick"));const f=document.querySelector("#quickForm");document.querySelector("#quickChooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);ensureHypothesisOtherReveal(f);
- document.querySelector("#quickCancel").onclick=()=>{renderHome();show("home")};
+ document.querySelector("#screen-quick").innerHTML=quickTemplate();
+ const root=document.querySelector("#screen-quick"),f=document.querySelector("#quickForm");
+ bindSpec(root);attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);bindHelpButtons(f);bindScreenClose(root);
+ document.querySelector("#quickChooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));
+ document.querySelector("#quickCancel").onclick=()=>goHomeSafe();
  f.onsubmit=async e=>{
    e.preventDefault();
    if(!validateRequiredRecordFields(f))return;
-   const r=quickToRecord(f);
-   await putRecord(r);
-   lastSavedRecordId=r.id;
-   toast("Registro guardado");
-   await renderList("all");
-   show("list");
-   setTimeout(()=>{
-     const item=document.querySelector(`#listWrap [data-id="${CSS.escape(r.id)}"]`);
-     if(item){item.classList.add("just-saved");item.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>item.classList.remove("just-saved"),2500)}
-   },100);
+   try{await finishSavedRecord(quickToRecord(f))}
+   catch(err){console.error("Error al guardar registro rápido:",err);toast("No se pudo guardar el registro")}
  };
- document.querySelector("#quickComplete").onclick=async()=>{if(!f.reportValidity())return;const r=quickToRecord(f);currentEditId=null;await renderForm(r);show("form")}
+ document.querySelector("#quickComplete").onclick=async()=>{if(!validateRequiredRecordFields(f))return;await renderForm(quickToRecord(f));show("form")};
 }
 function summaryRecord(r){
  return `<div class="record ${r.id===lastSavedRecordId?"just-saved":""}" data-id="${esc(r.id)}"><div class="record-head"><div><h3>${esc(r.codigo)} ${r.demo?'<span class="badge demo">DEMO</span>':""}</h3><div class="meta">${esc(new Date(r.fechaHora).toLocaleString("es-ES"))} · ${esc(selectedFirst(r.contexto))}</div></div><span class="badge ${r.riesgo==="alto"?"high":""}">${esc(r.riesgo||"sin riesgo")}</span></div>
@@ -698,45 +668,50 @@ function summaryRecord(r){
  <div class="actions"><button class="small" data-act="view">Ver</button><button class="small secondary" data-act="edit">Editar</button><button class="small secondary" data-act="dup">Duplicar</button><button class="small danger" data-act="delete">Eliminar</button><button class="small secondary" data-act="export">Exportar</button></div></div>`;
 }
 async function renderList(mode="all"){
- listMode=mode;let rs=await allRecords(),today=new Date().toISOString().slice(0,10);if(mode==="today")rs=rs.filter(r=>dateOnly(r.fechaHora)===today);
- document.querySelector("#screen-list").innerHTML=`<div class="card"><h2>${mode==="today"?"Registros de hoy":"Todos los registros"}</h2>
- <details class="filter-panel"><summary>Filtrar registros</summary><div class="toolbar"><div><label>Código<input id="fCode"></label></div><div><label>Contexto<select id="fContext"><option value="">Todos</option>${OPT.contexto.map(x=>`<option>${x}</option>`).join("")}</select></label></div><div><label>Riesgo<select id="fRisk"><option value="">Todos</option>${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div><div><label>Conducta<select id="fBehavior"><option value="">Todas</option>${OPT.conducta.map(x=>`<option>${x}</option>`).join("")}</select></label></div><div><label>Desde<input id="fFrom" type="date"></label></div><div><label>Hasta<input id="fTo" type="date"></label></div><button id="applyFilters" class="secondary">Filtrar</button></div>
- <div class="actions"><button id="deleteSelected" class="danger">Borrar registros seleccionados</button><button id="deleteDemo" class="secondary">Eliminar datos DEMO</button></div></div>
- <div id="recordList">${rs.length?rs.map(summaryRecord).join(""):'<div class="card"><p>No hay registros.</p></div>'}</div>`;
- const refresh=async()=>{let a=await allRecords();if(mode==="today")a=a.filter(r=>dateOnly(r.fechaHora)===today);const code=document.querySelector("#fCode").value.trim().toLowerCase(),ctx=document.querySelector("#fContext").value,risk=document.querySelector("#fRisk").value,bh=document.querySelector("#fBehavior").value,fr=document.querySelector("#fFrom").value,to=document.querySelector("#fTo").value;a=a.filter(r=>(!code||r.codigo.toLowerCase().includes(code))&&(!ctx||r.contexto.includes(ctx))&&(!risk||r.riesgo===risk)&&(!bh||r.conducta.includes(bh))&&(!fr||dateOnly(r.fechaHora)>=fr)&&(!to||dateOnly(r.fechaHora)<=to));document.querySelector("#recordList").innerHTML=a.length?a.map(summaryRecord).join(""):"<div class=card><p>No hay resultados.</p></div>";bindRecordActions()};
- document.querySelector("#applyFilters").onclick=refresh;
- function bindRecordActions(){document.querySelectorAll(".record [data-act]").forEach(b=>b.onclick=async()=>{const id=b.closest(".record").dataset.id,act=b.dataset.act,r=await getRecord(id);if(act==="view")viewRecord(r);if(act==="edit"){await renderForm(r);show("form")}if(act==="dup"){const copy=structuredClone(r);copy.id=uid();copy.fechaHora=nowLocal();copy.createdAt=new Date().toISOString();copy.updatedAt=copy.createdAt;await putRecord(copy);toast("Registro duplicado");renderList(mode)}if(act==="delete"&&confirm("¿Quieres eliminar este registro almacenado en este dispositivo?")){await deleteRecord(id);toast("Registro eliminado");renderList(mode)}if(act==="export"){selectedExportIds=[id];await renderReport();show("report")}})}
- bindRecordActions();
- document.querySelector("#deleteSelected").onclick=async()=>{const ids=[...document.querySelectorAll(".select-record:checked")].map(x=>x.value);if(!ids.length)return toast("Selecciona al menos un registro");if(confirm(`¿Eliminar ${ids.length} registro(s) seleccionado(s)?`)){for(const id of ids)await deleteRecord(id);toast("Registros eliminados");renderList(mode)}};
- document.querySelector("#deleteDemo").onclick=async()=>{const all=await allRecords(),d=all.filter(r=>r.demo);if(!d.length)return toast("No hay datos DEMO");if(confirm(`¿Eliminar ${d.length} registro(s) DEMO?`)){for(const r of d)await deleteRecord(r.id);toast("Datos DEMO eliminados");renderList(mode)}};
- 
- document.querySelector("#deleteDemoBtn")?.addEventListener("click",async()=>{
-   if(!confirm("¿Borrar todos los datos de prueba?"))return;
-   const n=await deleteDemoRecords();toast(`${n} registro(s) de prueba eliminados`);await renderList(listMode);
- });
- document.querySelector("#addDemoBtn")?.addEventListener("click",async()=>{
-   const ok=confirm("Se crearán registros ficticios solo para probar la aplicación. No corresponden a alumnado real.");
-   if(!ok)return;
-   const result=await addDemoRecords();
-   toast(`Datos de prueba añadidos: ${result.code}`);
-   await renderList(listMode);
- });
- const visibleRecords=()=>[...document.querySelectorAll("#listWrap [data-id]")].map(el=>el.dataset.id).filter(Boolean);
- const currentVisibleRecords=async()=>{
-   const ids=visibleRecords();
-   if(!ids.length)return [];
-   return await recordsByIds(ids);
- };
- const exportVisible=async fn=>{
-   const rs=await currentVisibleRecords();
-   if(!rs.length){toast("No hay registros visibles");return}
-   await reviewGate(async()=>fn(rs));
- };
- document.querySelector("#recordsPdfBtn")?.addEventListener("click",()=>exportVisible(rs=>exportStatsPDF(rs,{charts:false,details:true,code:"all"})));
- document.querySelector("#recordsDocxBtn")?.addEventListener("click",()=>exportVisible(rs=>exportStatsDOCX(rs,{charts:false,details:true,code:"all"})));
- document.querySelector("#recordsXlsxBtn")?.addEventListener("click",()=>exportVisible(rs=>exportStatsXlsx(rs,{charts:false,details:true,code:"all"})));
- document.querySelector("#recordsCsvBtn")?.addEventListener("click",()=>exportVisible(rs=>exportStatsCSV(rs)));
+ listMode=mode;
+ const all=await allRecords(),today=new Date().toISOString().slice(0,10);
+ const codes=[...new Set(all.map(r=>r.codigo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+ const base=mode==="today"?all.filter(r=>dateOnly(r.fechaHora)===today):all;
+ let visible=[...base];
 
+ document.querySelector("#screen-list").innerHTML=`<div class="card screen-card">${screenCloseButton()}
+   <h2>Registros</h2>
+   <details class="filter-panel"><summary>Filtrar registros</summary><div class="toolbar">
+     <label>Código<select id="fCode"><option value="">Todos</option>${codes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
+     <label>Contexto<select id="fContext"><option value="">Todos</option>${OPT.contexto.map(x=>`<option>${x}</option>`).join("")}</select></label>
+     <label>Riesgo<select id="fRisk"><option value="">Todos</option>${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label>
+     <label>Conducta<select id="fBehavior"><option value="">Todas</option>${OPT.conducta.map(x=>`<option>${x}</option>`).join("")}</select></label>
+     <label>Desde<input id="fFrom" type="date"></label><label>Hasta<input id="fTo" type="date"></label>
+     <div class="actions compact-actions"><button id="applyFilters" class="secondary" type="button">Aplicar</button><button id="clearFilters" class="ghost" type="button">Limpiar</button></div>
+   </div></details>
+   <details class="filter-panel"><summary>Datos de prueba</summary><div class="records-tools-row"><button id="addDemoBtn" class="secondary demo-btn" type="button">＋ Probar con datos ficticios</button><button id="deleteDemoBtn" class="ghost demo-delete" type="button">Borrar pruebas</button><span>Alumno ficticio · solo para probar</span></div></details>
+   <div class="records-export-bar"><span><strong>Exportar lo visible</strong></span><div class="records-export-actions"><button id="recordsPdfBtn">PDF</button><button id="recordsDocxBtn">DOCX</button><button id="recordsXlsxBtn">XLSX</button><button id="recordsCsvBtn">CSV</button></div></div>
+   <div id="recordList">${visible.length?visible.map(summaryRecord).join(""):'<div class="card"><p>No hay registros.</p></div>'}</div>
+ </div>`;
+
+ const bindActions=()=>document.querySelectorAll("#recordList .record [data-act]").forEach(b=>b.onclick=async()=>{
+   const id=b.closest(".record").dataset.id,act=b.dataset.act,r=await getRecord(id);
+   if(act==="view")viewRecord(r);
+   if(act==="edit"){await renderForm(r);show("form")}
+   if(act==="dup"){const copy=structuredClone(r);copy.id=uid();copy.fechaHora=nowLocal();copy.createdAt=new Date().toISOString();copy.updatedAt=copy.createdAt;await putRecord(copy);toast("Registro duplicado");renderList("all")}
+   if(act==="delete"&&confirm("¿Eliminar este registro?")){await deleteRecord(id);toast("Registro eliminado");renderList("all")}
+   if(act==="export"){selectedExportIds=[id];await renderReport();show("report")}
+ });
+ const draw=()=>{document.querySelector("#recordList").innerHTML=visible.length?visible.map(summaryRecord).join(""):'<div class="card"><p>No hay resultados.</p></div>';bindActions()};
+ document.querySelector("#applyFilters").onclick=()=>{
+   const code=document.querySelector("#fCode").value,ctx=document.querySelector("#fContext").value,risk=document.querySelector("#fRisk").value,bh=document.querySelector("#fBehavior").value,fr=document.querySelector("#fFrom").value,to=document.querySelector("#fTo").value;
+   visible=base.filter(r=>(!code||r.codigo===code)&&(!ctx||r.contexto.includes(ctx))&&(!risk||r.riesgo===risk)&&(!bh||r.conducta.includes(bh))&&(!fr||dateOnly(r.fechaHora)>=fr)&&(!to||dateOnly(r.fechaHora)<=to));draw();
+ };
+ document.querySelector("#clearFilters").onclick=()=>{["fCode","fContext","fRisk","fBehavior","fFrom","fTo"].forEach(id=>document.querySelector(`#${id}`).value="");visible=[...base];draw()};
+ bindActions();
+ document.querySelector("#addDemoBtn").onclick=async()=>{if(!confirm("Se crearán registros ficticios para probar la aplicación. No corresponden a alumnado real."))return;const r=await addDemoRecords();toast(`Datos ficticios añadidos: ${r.code}`);await renderList("all")};
+ document.querySelector("#deleteDemoBtn").onclick=async()=>{if(!confirm("¿Borrar todos los datos ficticios?"))return;const n=await deleteDemoRecords();toast(`${n} registro(s) ficticios eliminados`);await renderList("all")};
+ const exportVisible=async fn=>{if(!visible.length)return toast("No hay registros visibles");await reviewGate(async()=>fn(visible))};
+ document.querySelector("#recordsPdfBtn").onclick=()=>exportVisible(rs=>exportStatsPDF(rs,{charts:false,details:true,code:"all"}));
+ document.querySelector("#recordsDocxBtn").onclick=()=>exportVisible(rs=>exportStatsDOCX(rs,{charts:false,details:true,code:"all"}));
+ document.querySelector("#recordsXlsxBtn").onclick=()=>exportVisible(rs=>exportStatsXlsx(rs,{charts:false,details:true,code:"all"}));
+ document.querySelector("#recordsCsvBtn").onclick=()=>exportVisible(rs=>exportStatsCSV(rs));
+ bindScreenClose(document.querySelector("#screen-list"));
 }
 function ensureRecordDetailDialog(){
  let d=document.querySelector("#recordDetailDialog");

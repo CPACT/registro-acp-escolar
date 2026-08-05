@@ -1466,3 +1466,27 @@ button,.chip,.bottom-nav button{min-height:44px}
 [data-section="hipotesis"] input,
 [data-section="hipotesis"] textarea,
 [data-section="hipotesis"] label{pointer-events:auto!important}
+
+/* V21 — rebuilt stable UI */
+.form-accordion-card{padding:.55rem!important}
+.collapsible-field{margin:.45rem 0!important;border:1px solid var(--border)!important;border-radius:20px!important;overflow:hidden!important;background:#fff!important}
+.accordion-bar{display:grid!important;grid-template-columns:38px minmax(0,1fr)!important;align-items:center!important}
+.accordion-help,.accordion-help-spacer{grid-column:1;grid-row:1;width:28px!important;height:28px!important;justify-self:center!important}
+.accordion-toggle{grid-column:2;grid-row:1;width:100%!important;min-height:54px!important;display:grid!important;grid-template-columns:minmax(0,1fr) 28px!important;align-items:center!important;gap:.45rem!important;padding:.65rem .7rem .65rem .15rem!important;background:transparent!important;color:var(--text)!important;border:0!important;box-shadow:none!important;text-align:left!important}
+.accordion-title{font-weight:850!important;font-size:.96rem!important}
+.accordion-chevron{justify-self:end!important;width:28px!important;height:28px!important;display:grid!important;place-items:center!important;color:var(--muted)!important;font-size:1.2rem!important;transition:transform .18s ease!important}
+.collapsible-field.open .accordion-chevron{transform:rotate(180deg)!important}
+.collapsible-field .collapsible-body{display:none!important;padding:.2rem .8rem .8rem!important}
+.collapsible-field.open .collapsible-body{display:block!important}
+.collapsible-field.open{border-color:#bcd7cd!important;background:#fbfdfc!important}
+.compact-actions{display:flex!important;gap:.45rem!important;flex-wrap:wrap!important}
+.compact-install{max-width:620px!important;margin:.55rem auto!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;display:flex!important;justify-content:center!important}
+.compact-install .install-icon,.compact-install>div{display:none!important}
+.compact-install #homeInstallBtn{min-height:42px!important;min-width:180px!important;width:auto!important;border-radius:18px!important;padding:.45rem .8rem!important}
+.hero-header .brand-lockup{min-width:0!important;max-width:calc(100% - 58px)!important}
+.hero-header .brand-text{min-width:0!important;max-width:100%!important}
+.hero-header .brand-text h1{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.08!important;font-size:clamp(.9rem,4vw,1.35rem)!important;max-width:100%!important}
+.hero-header .brand-text p{white-space:normal!important;line-height:1.15!important}
+@media(max-width:420px){.hero-header .brand-icon{width:44px!important;height:44px!important;flex-basis:44px!important;border-radius:14px!important}.hero-header .brand-text h1{font-size:.9rem!important}.hero-header .brand-text p{font-size:.64rem!important}}
+.records-tools-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}.records-tools-row span{font-size:.76rem;color:var(--muted)}
+.record.just-saved{border-color:#4c9a78!important;box-shadow:0 0 0 4px rgba(76,154,120,.14)!important;background:#f3faf7!important}

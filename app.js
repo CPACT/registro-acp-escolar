@@ -2033,7 +2033,10 @@ document.addEventListener("DOMContentLoaded",async()=>{
   const d=b.dataset.bottomNav;
   if(d==="home"){await renderHome();show("home");return}
   if(d==="reports"){openReportsChooser();return}
-  if(d==="csv"){openImportDialog();return}
+  if(d==="csv"){
+    openImportDialog();
+    return;
+  }
   if(d==="list"){await renderList("all");show("list");return}
   if(d==="form"){await renderForm();show("form");return}
   navigate(d);

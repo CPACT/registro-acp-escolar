@@ -546,3 +546,82 @@ input[type=text],input[type=password],input[type=number],input[type=datetime-loc
 .mini-flow{display:grid;grid-template-columns:34px 1fr;gap:.45rem .65rem;align-items:center;margin:.8rem 0}.mini-flow b{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#315f51;color:white}.mini-flow span{font-weight:750}
 main p.warning,main .warning{line-height:1.35}
 @media(max-width:560px){.acp-mark{width:44px;height:44px;border-radius:15px}.install-mini{font-size:.82rem}}
+
+/* V6 – visual simplification and accessibility */
+.app-header{
+  min-height:72px;
+  padding:.7rem max(1rem,calc((100vw - var(--max))/2));
+}
+.app-header::before,.app-header::after{display:none!important}
+.brand-lockup{display:flex;align-items:center;gap:.72rem;min-width:0}
+.brand-icon{
+  width:52px;height:52px;flex:0 0 52px;border-radius:18px;
+  display:grid;place-items:center;
+  background:linear-gradient(145deg,#f7fbf9,#dfeee8);
+  color:#285b4b;font-weight:950;font-size:1rem;letter-spacing:.04em;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.65),0 5px 16px rgba(0,0,0,.12)
+}
+.brand-text{min-width:0}
+.brand-text h1{margin:0;font-size:1.02rem;font-weight:850}
+.brand-text p{margin:.05rem 0 0;font-size:.72rem;color:rgba(255,255,255,.76)}
+.header-install{
+  min-height:42px;padding:.5rem .72rem;border-radius:16px;
+  background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.18);
+  box-shadow:none;font-size:.84rem
+}
+.version-chip{
+  display:inline-flex;margin-left:.4rem;padding:.12rem .38rem;border-radius:999px;
+  background:#dfeee8;color:#285b4b;font-size:.68rem;font-weight:900;vertical-align:middle
+}
+.compact-note{
+  display:flex;align-items:center;gap:.35rem;
+  padding:.65rem .8rem;margin:.7rem 0;
+  background:#f2f7f5;border:1px solid #d8e6df;border-radius:18px;
+  font-size:.88rem
+}
+.grid-buttons button{
+  border-radius:28px!important;
+  min-height:82px!important;
+  padding:.8rem 2.9rem .8rem 1rem!important
+}
+.grid-buttons button::after{
+  width:30px!important;height:30px!important;border-radius:50%!important
+}
+button{border-radius:20px!important}
+.card{border-radius:30px!important}
+.record{border-radius:24px!important}
+.stat{border-radius:24px!important}
+.chip span{border-radius:20px!important}
+input[type=text],input[type=password],input[type=number],input[type=datetime-local],input[type=date],input[type=email],select,textarea{
+  border-radius:18px!important
+}
+.how-use{
+  grid-template-columns:auto 1fr auto!important;
+  grid-template-rows:auto!important;
+  border-radius:22px!important;
+  min-height:58px!important;
+  padding:.7rem .85rem!important
+}
+.how-use small{display:none!important}
+.how-icon{
+  width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+  background:#e8f2ee;color:#2e6655;font-weight:950
+}
+.home-tools{border-radius:22px!important}
+.help-dot{
+  width:28px!important;height:28px!important;min-height:28px!important;
+  border-radius:50%!important;padding:0!important;
+  background:#eaf3ef!important;color:#2c6150!important;
+  border:1px solid #c9ddd4!important;box-shadow:none!important
+}
+.dialog-card{border-radius:28px}
+.bottom-nav{border-radius:22px 22px 0 0}
+.bottom-nav button{border-radius:18px!important}
+.bottom-nav .nav-primary{border-radius:22px!important}
+@media(max-width:560px){
+  .brand-icon{width:46px;height:46px;flex-basis:46px;border-radius:16px}
+  .brand-text h1{font-size:.96rem}
+  .brand-text p{font-size:.68rem}
+  .header-install{font-size:.78rem;padding:.45rem .6rem}
+  .grid-buttons button{min-height:76px!important}
+}

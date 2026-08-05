@@ -124,7 +124,7 @@ function bindHelpButtons(root=document){
 
 function show(id){
  document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
- const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();
+ const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>bindHelpButtons(el),0);
 }
 function requirePin(next){
  const p=prefs(); if(!p.pinEnabled||unlocked){next();return}
@@ -152,15 +152,15 @@ function renderConsent(){
 }
 async function renderHome(){
  const rs=await allRecords(), old=oldCount(rs); const note=old?`<div class="warning"><strong>Revisión de datos:</strong> Existen ${old} registro(s) antiguos en este dispositivo. Revisa si sigue siendo necesario conservarlos.</div>`:"";
- document.querySelector("#screen-home").innerHTML=`<div class="card hero"><div class="hero-copy"><span class="app-kicker">ACP · Registro educativo</span><h2>Observar para comprender y apoyar</h2><p>Registra hechos, revisa patrones y planifica apoyos desde una mirada centrada en la persona.</p><span class="privacy-pill">Datos guardados en este dispositivo</span></div>
- <div class="disclaimer"><p><strong>Esta herramienta facilita el registro educativo dentro de procesos de Apoyo Conductual Positivo. No realiza diagnósticos ni sustituye la valoración profesional.</strong></p>
- <p>No sustituye la evaluación psicológica, médica, psiquiátrica, pedagógica ni profesional.</p><p>No sustituye los protocolos del centro, los procedimientos establecidos de protección o seguridad ni las actuaciones de emergencia.</p></div>${note}</div>
+ document.querySelector("#screen-home").innerHTML=`<div class="card hero"><div class="hero-copy"><span class="app-kicker">ACP · Registro educativo</span><span class="version-chip">V6</span><h2>Observar. Comprender. Apoyar.</h2><p>Registra hechos. Revisa patrones. Planifica apoyos.</p><span class="privacy-pill">Datos guardados en este dispositivo</span></div>
+ <div class="disclaimer"><p><strong>Registro educativo para procesos de Apoyo Conductual Positivo.</strong></p>
+ </div>${note}</div>
  <div class="install-card"><div class="install-icon">⬇</div><div><h3>Instalar esta app</h3><p>Instálala para abrirla como una app.</p></div><button id="homeInstallBtn" class="secondary">Instalar app</button></div>
  <div class="local-badge">● Datos guardados en este dispositivo</div>
  <div style="height:.75rem"></div>
  <div class="grid-buttons">
  ${[
- ["Nuevo registro","Crear un registro","form"],["Importar CSV","Cargar registros desde un archivo","importcsv"],["Registro rápido","Registrar lo esencial en una sola pantalla","quick"],["Registros de hoy","Consultar y gestionar los registros de hoy","today"],["Todos los registros","Buscar, filtrar, editar y duplicar","all"],["Informe / Exportar","PDF, CSV o preparación de correo","report"],["Estadísticas","Patrones descriptivos calculados localmente","stats"],["Ayuda","Conceptos y ejemplos observables","help"],["Privacidad y datos","Arquitectura y flujo local de datos","privacy"],["Acerca de / Licencia / Uso ético","Autoría, licencia y limitaciones","about"],["Configuración","PIN y recordatorio de revisión","settings"]
+ ["Nuevo registro","Nuevo registro","form"],["Importar CSV","Cargar registros desde un archivo","importcsv"],["Registro rápido","Registrar lo esencial en una sola pantalla","quick"],["Registros de hoy","Ver registros de hoy","today"],["Todos los registros","Buscar y gestionar","all"],["Informe / Exportar","PDF, CSV o preparación de correo","report"],["Estadísticas","Ver patrones","stats"],["Ayuda","Ayuda breve","help"],["Privacidad y datos","Datos y privacidad","privacy"],["Acerca de / Licencia / Uso ético","Autoría, licencia y limitaciones","about"],["Configuración","Seguridad y revisión","settings"]
  ].map(([a,b,c])=>`<button data-nav="${c}"><strong>${a}</strong><span>${b}</span></button>`).join("")}</div>
  <div class="card"><h2>Cómo usarla en 60 segundos</h2><div class="flow">${["Observar","↓","Registrar hechos","↓","Revisar patrones","↓","Formular hipótesis","↓","Planificar apoyos","↓","Revisar en equipo"].map(x=>x==="↓"?"<b>↓</b>":`<span>${x}</span>`).join("")}</div></div>`;
  document.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>navigate(b.dataset.nav));
@@ -173,19 +173,19 @@ async function renderHome(){
 function formTemplate(d={}){
  const inc=d.inclusion||{};
  return `<form id="recordForm">
- <div class="card"><div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2>${currentEditId?"":'<button type="button" class="secondary small" id="importFromForm">Importar CSV</button>'}</div><p class="hint">Usa códigos pseudónimos. Evita datos identificativos innecesarios.</p>
+ <div class="card"><div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2>${currentEditId?"":'<button type="button" class="secondary small" id="importFromForm">Importar CSV</button>'}</div><p class="hint">Usa un código pseudónimo.</p>
  <div class="two"><label class="required">Fecha y hora<input name="fechaHora" type="datetime-local" required value="${esc(d.fechaHora||nowLocal())}"></label>
- <label class="required">Código pseudónimo del alumnado<input name="codigo" required value="${esc(d.codigo||"")}"><span class="hint">Utiliza un código interno que no permita identificar directamente a la persona.</span></label>
+ <label class="required">Código pseudónimo del alumnado<input name="codigo" required value="${esc(d.codigo||"")}"><span class="hint">Código interno, no nombre real.</span></label>
  <label>Curso / grupo<input name="grupo" value="${esc(d.grupo||"")}"></label><label>Profesional que registra (iniciales o alias)<input name="profesional" value="${esc(d.profesional||"")}"></label></div></div>
- <div class="card"><h3>Contexto escolar</h3>${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
+ <div class="card"><h3>Contexto escolar <button type="button" class="help-dot" data-help-title="Contexto escolar" data-help-body="Selecciona dónde ocurrió la situación. Puedes marcar varias opciones.">?</button></h3>${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
  <div class="card"><h3>Factores del entorno ${helpButton("Factores del entorno","Marca condiciones que pudieron influir: ruido, espera, cambios, comunicación, descanso, etc. No se usan para inferir diagnósticos.")}</h3>${chips("factores",OPT.factores,d.factores||[],"factoresOtro",d.factoresOtro||"")}
- <p class="hint">En alumnado autista o con otras necesidades de apoyo, observa especialmente barreras sensoriales, predictibilidad, comunicación, comprensión, transiciones y tiempo de procesamiento.</p><p class="hint">No son indicadores diagnósticos.</p></div>
- <div class="card"><h3>A) Antecedente inmediato</h3>${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
+ <p class="hint">Observa barreras del entorno y necesidades de apoyo.</p><p class="hint"></p></div>
+ <div class="card"><h3>Antecedente inmediato <button type="button" class="help-dot" data-help-title="Antecedente" data-help-body="Qué ocurrió justo antes. Describe hechos observables.">?</button></h3>${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
  <label>Descripción objetiva del antecedente <button type="button" class="small secondary" data-help="ante">?</button><textarea name="antecedenteDesc">${esc(d.antecedenteDesc||"")}</textarea></label>
- <p class="hint">Adecuado: “Se le indicó guardar el móvil y comenzó a golpear la mesa.” Evita: “Se enfadó porque no quería obedecer.”</p></div>
+ <p class="hint">Describe hechos, no intenciones.</p></div>
  <div class="card"><h3>Conducta observada ${helpButton("Conducta observada","Describe lo que se vio u oyó. Ejemplo: “Golpeó la mesa tres veces”. Evita etiquetas como “se portó mal”.")}</h3>${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}
  <label class="required">Descripción objetiva de la conducta<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
- <p class="hint">Ejemplo: “Golpea la mesa con la mano abierta durante aproximadamente 20 segundos.” Evita: “Se porta mal.”</p>
+ <p class="hint">Describe hechos observables.</p>
  <div class="three"><label>Duración<input type="number" min="0" step="1" name="duracionValor" value="${esc(d.duracionValor||"")}"></label><label>Unidad<select name="duracionUnidad"><option>segundos</option><option ${d.duracionUnidad==="minutos"?"selected":""}>minutos</option></select></label><label>Frecuencia<input type="number" min="0" step="1" name="frecuencia" value="${esc(d.frecuencia||1)}"></label></div>
  <div class="actions"><button type="button" class="secondary small" id="timerStart">Iniciar cronómetro</button><button type="button" class="secondary small" id="timerStop" disabled>Detener</button><span id="timerDisplay" aria-live="polite"></span></div></div>
  <div class="card"><div class="two"><label>Intensidad (1–5)<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${String(d.intensidad||3)===String(n)?"selected":""}>${n}</option>`).join("")}</select></label>
@@ -193,13 +193,13 @@ function formTemplate(d={}){
  <p class="hint">1 — Muy baja: apenas interfiere. 2 — Baja. 3 — Moderada. 4 — Alta. 5 — Muy alta. Describe el episodio, no a la persona.</p>
  <div id="highRisk" class="risk ${d.riesgo==="alto"?"":"hidden"}">Prioriza la seguridad, la dignidad y los protocolos establecidos por el centro. Esta aplicación no es una guía de intervención de emergencia.</div></div>
  <div class="card"><h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
- <label>Descripción adicional<textarea name="consecuenciaDesc">${esc(d.consecuenciaDesc||"")}</textarea></label><p class="hint">Consecuencia significa qué ocurrió inmediatamente después. No implica necesariamente premio, castigo ni causa.</p></div>
- <div class="card"><h3>HIPÓTESIS, NO DIAGNÓSTICO</h3><div class="warning"><strong>Hipótesis funcional provisional:</strong> requiere varios registros, análisis de patrones y revisión en equipo.</div>${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
- <p class="hint">Los datos podrían ser compatibles con una o varias hipótesis; ninguna se presenta como verdadera automáticamente.</p></div>
+ <label>Descripción adicional<textarea name="consecuenciaDesc">${esc(d.consecuenciaDesc||"")}</textarea></label><p class="hint">Qué ocurrió después.</p></div>
+ <div class="card"><h3>Hipótesis provisional <button type="button" class="help-dot" data-help-title="Hipótesis, no diagnóstico" data-help-body="Es una explicación provisional. Necesita varios registros y revisión en equipo.">?</button></h3><div class="warning"><strong>Hipótesis funcional provisional:</strong> requiere varios registros, análisis de patrones y revisión en equipo.</div>${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
+ <p class="hint">Hipótesis provisional.</p></div>
  <div class="card"><h3>Apoyos aplicados ${helpButton("Apoyos","Registra los apoyos utilizados y si pareció que ayudaron. Esto no demuestra causalidad.")}</h3>${chips("apoyos",OPT.apoyos,d.apoyos||[],"apoyosOtro",d.apoyosOtro||"")}
- <label>¿Pareció ayudar?<select name="apoyoValoracion"><option></option>${["Sí","Parcialmente","No","No valorable"].map(x=>`<option ${d.apoyoValoracion===x?"selected":""}>${x}</option>`).join("")}</select></label><p class="hint">Esta valoración no demuestra causalidad.</p></div>
- <div class="card"><h3>Qué probar la próxima vez</h3>${chips("proxima",OPT.proxima,d.proxima||[],"proximaOtro",d.proximaOtro||"")}<label>Nota breve<textarea name="proximaTexto">${esc(d.proximaTexto||"")}</textarea></label></div>
- <div class="card"><h3>Indicadores de inclusión y contexto</h3><p>Esta sección ayuda a revisar las condiciones del entorno y los apoyos ofrecidos; no es una escala sobre la persona.</p><div class="two">${inclusionFields(inc)}</div></div>
+ <label>¿Pareció ayudar?<select name="apoyoValoracion"><option></option>${["Sí","Parcialmente","No","No valorable"].map(x=>`<option ${d.apoyoValoracion===x?"selected":""}>${x}</option>`).join("")}</select></label><p class="hint">No demuestra causalidad.</p></div>
+ <div class="card"><h3>Próxima vez <button type="button" class="help-dot" data-help-title="Próxima vez" data-help-body="Anota ajustes o apoyos que conviene probar en una situación similar.">?</button></h3>${chips("proxima",OPT.proxima,d.proxima||[],"proximaOtro",d.proximaOtro||"")}<label>Nota breve<textarea name="proximaTexto">${esc(d.proximaTexto||"")}</textarea></label></div>
+ <div class="card"><h3>Inclusión y contexto <button type="button" class="help-dot" data-help-title="Inclusión y contexto" data-help-body="Revisa accesibilidad, participación, predictibilidad, comunicación y dignidad. No evalúa a la persona.">?</button></h3><p>Revisa el entorno y los apoyos.</p><div class="two">${inclusionFields(inc)}</div></div>
  <div class="card actions"><button type="submit">${currentEditId?"Guardar cambios":"Guardar registro"}</button><button type="button" class="secondary" id="cancelForm">Cancelar</button></div></form>`;
 }
 function bindSpec(root=document){
@@ -282,7 +282,7 @@ function recordHtml(r){
  <section class="detail-section"><h3>Registro ABC</h3><div class="abc-block"><b>A · Antecedente</b><p>${list(r.antecedente,r.antecedenteOtro)}</p><p class="detail-note">${esc(r.antecedenteDesc||"Sin descripción adicional")}</p></div><div class="abc-block"><b>B · Conducta observada</b><p>${list(r.conducta,r.conductaOtro)}</p><p class="detail-note">${esc(r.conductaDesc||"—")}</p></div><div class="detail-metrics">${metric("Duración",`${r.duracionValor||0} ${r.duracionUnidad||""}`)}${metric("Frecuencia",r.frecuencia)}${metric("Intensidad",r.intensidad)}${metric("Riesgo",r.riesgo,r.riesgo==="alto"?"risk-metric":"")}</div><div class="abc-block"><b>C · Consecuencia</b><p>${list(r.consecuencia,r.consecuenciaOtro)}</p><p class="detail-note">${esc(r.consecuenciaDesc||"Sin descripción adicional")}</p></div></section>
  <section class="detail-section hypothesis-card"><h3>HIPÓTESIS FUNCIONAL PROVISIONAL — NO DIAGNÓSTICO</h3><p>${list(r.hipotesis,r.hipotesisOtro)}</p><small>Requiere varios registros, análisis de patrones y revisión en equipo. Una frecuencia o correlación no demuestra por sí sola la función de una conducta.</small></section>
  <section class="detail-section"><h3>Apoyos y prevención</h3><p><strong>Apoyos aplicados:</strong> ${list(r.apoyos,r.apoyosOtro)}</p><p><strong>¿Pareció ayudar?</strong> ${esc(r.apoyoValoracion||"—")} <span class="hint">(no demuestra causalidad)</span></p><p><strong>Qué probar la próxima vez:</strong> ${list(r.proxima,r.proximaOtro)}</p><p class="detail-note">${esc(r.proximaTexto||"Sin nota adicional")}</p></section>
- <section class="detail-section"><h3>Indicadores de inclusión y contexto</h3><div class="inclusion-list">${INCLUSION.map(k=>`<div><span>${esc(INCLUSION_LABELS[k])}</span><strong>${esc(r.inclusion?.[k]||"—")}</strong></div>`).join("")}</div></section>`;
+ <section class="detail-section"><h3>Inclusión y contexto <button type="button" class="help-dot" data-help-title="Inclusión y contexto" data-help-body="Revisa accesibilidad, participación, predictibilidad, comunicación y dignidad. No evalúa a la persona.">?</button></h3><div class="inclusion-list">${INCLUSION.map(k=>`<div><span>${esc(INCLUSION_LABELS[k])}</span><strong>${esc(r.inclusion?.[k]||"—")}</strong></div>`).join("")}</div></section>`;
 }
 let selectedExportIds=[];
 async function renderReport(){
@@ -551,11 +551,11 @@ function oldCount(rs){const r=prefs().retention;if(r==="manual"||!r)return 0;con
 function renderMore(){
  document.querySelector("#screen-settings").innerHTML=`<div class="card"><span class="app-kicker">Más opciones</span><h2>Herramientas y configuración</h2>
  <div class="more-grid">
-  <button data-more="report"><strong>Informe / Exportar</strong><span>PDF, CSV y correo</span></button>
-  <button data-more="quick"><strong>Registro rápido</strong><span>Guardar lo esencial</span></button>
+  <button data-more="report"><strong>Informe / Exportar</strong><span>Exportar o compartir</span></button>
+  <button data-more="quick"><strong>Registro rápido</strong><span>Registro rápido</span></button>
   <button data-more="help"><strong>Ayuda</strong><span>ABC, ACP y ejemplos</span></button>
   <button data-more="privacy"><strong>Privacidad y datos</strong><span>Arquitectura local-first</span></button>
-  <button data-more="about"><strong>Acerca de</strong><span>Autoría, licencia y uso ético</span></button>
+  <button data-more="about"><strong>Acerca de</strong><span>Autoría y licencia</span></button>
   <button data-more="settings"><strong>Configuración</strong><span>PIN y revisión de datos</span></button>
  </div></div>`;
  document.querySelectorAll("[data-more]").forEach(b=>b.onclick=async()=>{

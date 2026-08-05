@@ -1121,3 +1121,50 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:360px){
   .record-actions{grid-template-columns:1fr}
 }
+
+/* V18 — inicio jerárquico y menú emergente */
+.header-gear{
+  position:relative!important;margin-left:auto!important;width:44px!important;height:44px!important;
+  border-radius:50%!important;display:grid!important;place-items:center!important
+}
+.settings-popover{
+  position:fixed;top:72px;right:max(1rem,calc((100vw - var(--max))/2));
+  width:min(270px,calc(100vw - 2rem));background:#fff;border:1px solid var(--border);
+  border-radius:20px;padding:.45rem;box-shadow:0 18px 45px rgba(23,54,45,.18);z-index:200
+}
+.settings-popover button{
+  width:100%;display:flex;align-items:center;gap:.75rem;justify-content:flex-start;
+  background:transparent;color:var(--text);box-shadow:none;border:0;padding:.75rem .85rem;border-radius:14px
+}
+.settings-popover button:hover,.settings-popover button:focus-visible{background:#eef6f2}
+.settings-popover span{font-weight:800}
+.register-zone{
+  max-width:620px;margin:1rem auto!important;padding:1rem;border:1px solid #d9e7e1;
+  border-radius:30px;background:linear-gradient(180deg,#fbfdfc,#f3f8f6)
+}
+.home-section-head.centered{justify-content:center}
+.home-section-head.centered h2{font-size:1.05rem}
+.centered-records{max-width:520px;margin:0 auto}
+.reports-zone{max-width:620px;margin:.8rem auto!important}
+.report-main-btn{
+  width:100%!important;min-height:72px!important;border-radius:26px!important;
+  display:grid!important;grid-template-columns:auto 1fr auto!important;grid-template-rows:auto auto!important;
+  gap:.15rem .75rem!important;align-items:center!important;text-align:left!important;
+  background:#fff!important;color:var(--text)!important;border:1px solid var(--border)!important;box-shadow:var(--shadow-sm)!important
+}
+.report-main-btn>span{grid-row:1/3;width:42px;height:42px;border-radius:16px;display:grid;place-items:center;background:#edf5f1;color:var(--brand)}
+.report-main-btn strong{font-size:1rem}.report-main-btn small{color:var(--muted)}.report-main-btn i{grid-column:3;grid-row:1/3;font-style:normal;font-size:1.5rem;color:var(--muted)}
+.report-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-top:.8rem}
+.report-choice-grid button{min-height:120px!important;border-radius:24px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:.35rem!important;background:#f7faf9!important;color:var(--text)!important;border:1px solid var(--border)!important}
+.report-choice-grid button span{font-size:1.5rem}.report-choice-grid button small{color:var(--muted)}
+.filter-panel{margin:.7rem 0;border:1px solid var(--border);border-radius:18px;background:#fafcfb}
+.filter-panel summary{cursor:pointer;padding:.7rem .85rem;font-weight:850;color:var(--brand);list-style:none}
+.filter-panel summary::-webkit-details-marker{display:none}
+.filter-panel summary::after{content:"⌄";float:right}
+.filter-panel[open] summary::after{content:"⌃"}
+.filter-panel>div{padding:.1rem .75rem .75rem}
+@media(max-width:560px){
+ .settings-popover{right:.65rem;top:66px}
+ .register-zone,.reports-zone{max-width:100%}
+ .report-choice-grid{grid-template-columns:1fr}
+}

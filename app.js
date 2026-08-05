@@ -127,6 +127,9 @@ async function triggerInstall(){
 }
 
 
+function openReportsChooser(){
+  document.querySelector("#reportsChooserDialog")?.showModal();
+}
 function quickHelp(title,html){
   const d=document.querySelector("#quickHelpDialog");
   if(!d)return;
@@ -312,37 +315,25 @@ async function renderHome(){
     </div>
 
     <button id="howUseBtn" class="how-use" type="button" aria-haspopup="dialog">
-      <span class="how-icon">?</span>
-      <strong>Cómo funciona</strong>
-      <span class="chev" aria-hidden="true">›</span>
+      <span class="how-icon">?</span><strong>Cómo funciona</strong><span class="chev">›</span>
     </button>
 
-    <section class="home-section" aria-labelledby="home-registro-title">
-      <div class="home-section-head">
-        <h2 id="home-registro-title">Registro</h2>
-      </div>
-      <div class="record-actions">
+    <section class="home-section register-zone" aria-labelledby="home-registro-title">
+      <div class="home-section-head centered"><h2 id="home-registro-title">Registro</h2></div>
+      <div class="record-actions centered-records">
         <button class="record-main" data-nav="form" type="button">
-          <span class="record-symbol">＋</span>
-          <strong>Nuevo</strong>
-          <small>Completo</small>
+          <span class="record-symbol">＋</span><strong>Nuevo</strong><small>Completo</small>
         </button>
         <button class="record-main" data-nav="quick" type="button">
-          <span class="record-symbol">⚡</span>
-          <strong>Rápido</strong>
-          <small>Lo esencial</small>
+          <span class="record-symbol">⚡</span><strong>Rápido</strong><small>Lo esencial</small>
         </button>
       </div>
     </section>
 
-    <section class="home-section" aria-label="Herramientas">
-      <div class="simple-actions">
-        <button data-nav="report" type="button"><span>▤</span><strong>Informe</strong></button>
-        <button data-nav="stats" type="button"><span>◫</span><strong>Estadísticas</strong></button>
-        <button data-nav="help" type="button"><span>?</span><strong>Ayuda</strong></button>
-        <button data-nav="privacy" type="button"><span>⌾</span><strong>Privacidad</strong></button>
-        <button data-nav="about" type="button"><span>ⓘ</span><strong>Acerca de</strong></button>
-      </div>
+    <section class="home-section reports-zone">
+      <button id="homeReportsBtn" class="report-main-btn" type="button">
+        <span>▤</span><strong>Informes</strong><small>Estadísticas o alumnado</small><i>›</i>
+      </button>
     </section>
 
     <div class="home-tools compact-tools">
@@ -357,19 +348,14 @@ async function renderHome(){
     </div>`;
 
   el.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.nav)));
+  el.querySelector("#homeReportsBtn")?.addEventListener("click",openReportsChooser);
   el.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
   el.querySelector("#homeInstallBtn")?.addEventListener("click",openInstallHelp);
   el.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo funciona",`
-    <div class="install-steps">
-      <b>1</b><span><strong>Observa</strong>.</span>
-      <b>2</b><span><strong>Registra hechos</strong>.</span>
-      <b>3</b><span><strong>Revisa patrones</strong>.</span>
-      <b>4</b><span><strong>Planifica apoyos</strong>.</span>
-    </div>
+    <div class="install-steps"><b>1</b><span><strong>Observa</strong>.</span><b>2</b><span><strong>Registra hechos</strong>.</span><b>3</b><span><strong>Revisa patrones</strong>.</span><b>4</b><span><strong>Planifica apoyos</strong>.</span></div>
     <p class="hint">Las hipótesis son provisionales y no son diagnósticos.</p>
   `));
-  refreshInstallUI();
-  bindHelpButtons(el);
+  refreshInstallUI();bindHelpButtons(el);
 }
 function formTemplate(d={}){
  const inc=d.inclusion||{};
@@ -456,7 +442,7 @@ function summaryRecord(r){
 async function renderList(mode="all"){
  listMode=mode;let rs=await allRecords(),today=new Date().toISOString().slice(0,10);if(mode==="today")rs=rs.filter(r=>dateOnly(r.fechaHora)===today);
  document.querySelector("#screen-list").innerHTML=`<div class="card"><h2>${mode==="today"?"Registros de hoy":"Todos los registros"}</h2>
- <div class="toolbar"><div><label>Código<input id="fCode"></label></div><div><label>Contexto<select id="fContext"><option value="">Todos</option>${OPT.contexto.map(x=>`<option>${x}</option>`).join("")}</select></label></div><div><label>Riesgo<select id="fRisk"><option value="">Todos</option>${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div><div><label>Conducta<select id="fBehavior"><option value="">Todas</option>${OPT.conducta.map(x=>`<option>${x}</option>`).join("")}</select></label></div><div><label>Desde<input id="fFrom" type="date"></label></div><div><label>Hasta<input id="fTo" type="date"></label></div><button id="applyFilters" class="secondary">Filtrar</button></div>
+ <details class="filter-panel"><summary>Filtrar registros</summary><div class="toolbar"><div><label>Código<input id="fCode"></label></div><div><label>Contexto<select id="fContext"><option value="">Todos</option>${OPT.contexto.map(x=>`<option>${x}</option>`).join("")}</select></label></div><div><label>Riesgo<select id="fRisk"><option value="">Todos</option>${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div><div><label>Conducta<select id="fBehavior"><option value="">Todas</option>${OPT.conducta.map(x=>`<option>${x}</option>`).join("")}</select></label></div><div><label>Desde<input id="fFrom" type="date"></label></div><div><label>Hasta<input id="fTo" type="date"></label></div><button id="applyFilters" class="secondary">Filtrar</button></div>
  <div class="actions"><button id="deleteSelected" class="danger">Borrar registros seleccionados</button><button id="deleteDemo" class="secondary">Eliminar datos DEMO</button></div></div>
  <div id="recordList">${rs.length?rs.map(summaryRecord).join(""):'<div class="card"><p>No hay registros.</p></div>'}</div>`;
  const refresh=async()=>{let a=await allRecords();if(mode==="today")a=a.filter(r=>dateOnly(r.fechaHora)===today);const code=document.querySelector("#fCode").value.trim().toLowerCase(),ctx=document.querySelector("#fContext").value,risk=document.querySelector("#fRisk").value,bh=document.querySelector("#fBehavior").value,fr=document.querySelector("#fFrom").value,to=document.querySelector("#fTo").value;a=a.filter(r=>(!code||r.codigo.toLowerCase().includes(code))&&(!ctx||r.contexto.includes(ctx))&&(!risk||r.riesgo===risk)&&(!bh||r.conducta.includes(bh))&&(!fr||dateOnly(r.fechaHora)>=fr)&&(!to||dateOnly(r.fechaHora)<=to));document.querySelector("#recordList").innerHTML=a.length?a.map(summaryRecord).join(""):"<div class=card><p>No hay resultados.</p></div>";bindRecordActions()};
@@ -884,7 +870,7 @@ async function renderStats(){
  const all=await allRecords(),codes=[...new Set(all.map(r=>r.codigo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
  document.querySelector("#screen-stats").innerHTML=`<div class="card"><h2>Patrones descriptivos</h2>
  <p class="hint">Resumen local. No demuestra la función de una conducta ni realiza diagnósticos.</p>
- <div class="stats-controls">
+ <details class="filter-panel"><summary>Filtros y opciones</summary><div class="stats-controls">
    <label>Código pseudónimo<select id="statsCode"><option value="all">Todos</option>${codes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
    <label>Desde<input id="statsFrom" type="date"></label>
    <label>Hasta<input id="statsTo" type="date"></label>
@@ -892,7 +878,7 @@ async function renderStats(){
    <label class="checkline"><input id="statsDetails" type="checkbox"> Incluir detalle de registros</label>
    <button id="statsApply" type="button">Aplicar</button>
  </div>
- <div id="statsSummary"></div>
+ </div></details><div id="statsSummary"></div>
  <div class="actions stats-export"><button id="statsPdf">PDF</button><button id="statsDocx">DOCX</button><button id="statsXlsx">XLSX</button><button id="statsCsv">CSV</button></div>
  </div>`;
  const state=()=>({code:document.querySelector("#statsCode").value,from:document.querySelector("#statsFrom").value,to:document.querySelector("#statsTo").value,charts:document.querySelector("#statsCharts").checked,details:document.querySelector("#statsDetails").checked});
@@ -983,11 +969,32 @@ function renderMore(){
 
 async function navigate(dest){
  const protectedScreens=["form","quick","today","all","report","stats","settings"];
- const go=async()=>{if(dest==="importcsv"){openImportDialog();return}if(dest==="more"){renderMore();return}if(dest==="form"){await renderForm();show("form")}else if(dest==="quick"){renderQuick();show("quick")}else if(dest==="today"){await renderList("today");show("list")}else if(dest==="all"){await renderList("all");show("list")}else if(dest==="report"){selectedExportIds=[];await renderReport();show("report")}else if(dest==="stats"){await renderStats();show("stats")}else if(dest==="help"){renderHelp();show("help")}else if(dest==="privacy"){renderPrivacy();show("privacy")}else if(dest==="about"){renderAbout();show("about")}else if(dest==="settings"){await renderSettings();show("settings")}};
+ const go=async()=>{if(dest==="reports"){openReportsChooser();return}if(dest==="importcsv"){openImportDialog();return}if(dest==="more"){renderMore();return}if(dest==="form"){await renderForm();show("form")}else if(dest==="quick"){renderQuick();show("quick")}else if(dest==="today"){await renderList("today");show("list")}else if(dest==="all"){await renderList("all");show("list")}else if(dest==="report"){selectedExportIds=[];await renderReport();show("report")}else if(dest==="stats"){await renderStats();show("stats")}else if(dest==="help"){renderHelp();show("help")}else if(dest==="privacy"){renderPrivacy();show("privacy")}else if(dest==="about"){renderAbout();show("about")}else if(dest==="settings"){await renderSettings();show("settings")}};
  if(protectedScreens.includes(dest))requirePin(go);else go()
 }
 document.addEventListener("DOMContentLoaded",async()=>{
  db=await openDB();
+
+ const gear=document.querySelector("#headerSettingsBtn"), menu=document.querySelector("#settingsMenu");
+ gear?.addEventListener("click",e=>{
+   e.stopPropagation();
+   const open=!menu.classList.contains("hidden");
+   menu.classList.toggle("hidden",open);
+   gear.setAttribute("aria-expanded",String(!open));
+ });
+ document.addEventListener("click",e=>{
+   if(menu && !menu.classList.contains("hidden") && !menu.contains(e.target) && e.target!==gear){
+     menu.classList.add("hidden");gear?.setAttribute("aria-expanded","false");
+   }
+ });
+ menu?.querySelectorAll("[data-menu-nav]").forEach(b=>b.addEventListener("click",()=>{
+   menu.classList.add("hidden");gear?.setAttribute("aria-expanded","false");navigate(b.dataset.menuNav);
+ }));
+ document.querySelectorAll("[data-report-choice]").forEach(b=>b.addEventListener("click",()=>{
+   document.querySelector("#reportsChooserDialog")?.close();
+   if(b.dataset.reportChoice==="stats")navigate("stats");else navigate("report");
+ }));
+
  document.querySelector("#headerSettingsBtn")?.addEventListener("click",()=>navigate("settings"));
  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;});
  window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;localStorage.setItem(PWA_FLAG,"1");toast("App instalada");refreshInstallUI();});

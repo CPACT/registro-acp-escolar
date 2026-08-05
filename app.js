@@ -51,14 +51,64 @@ async function openDB(){
  return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(STORE)){const s=d.createObjectStore(STORE,{keyPath:"id"});s.createIndex("fechaHora","fechaHora");s.createIndex("codigo","codigo");s.createIndex("riesgo","riesgo")}if(!d.objectStoreNames.contains(DOC_STORE)){d.createObjectStore(DOC_STORE,{keyPath:"id"})}};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})
 }
 
+
+async function resolveManualSaveConflict(record){
+  const all=await allRecords();
+  const match=all.find(r=>
+    r.id!==record.id &&
+    String(r.codigo||"").trim()===String(record.codigo||"").trim() &&
+    minuteKey(r.fechaHora)===minuteKey(record.fechaHora)
+  );
+  if(!match)return {action:"save",record};
+
+  const action=await askCsvConflict(match,record,[]);
+  if(action==="cancel")return {action:"cancel",record:null};
+
+  if(action==="both"){
+    const copy={...record,id:uid(),duplicado:true,duplicadoDe:match.id,updatedAt:new Date().toISOString()};
+    copy.createdAt=copy.createdAt||copy.updatedAt;
+    return {action:"both",record:copy};
+  }
+
+  if(action==="replace"){
+    const replacement={
+      ...record,
+      id:match.id,
+      duplicado:Boolean(match.duplicado),
+      duplicadoDe:match.duplicadoDe||null,
+      createdAt:match.createdAt||record.createdAt||new Date().toISOString(),
+      updatedAt:new Date().toISOString()
+    };
+    return {action:"replace",record:replacement};
+  }
+  return {action:"cancel",record:null};
+}
+
 async function finishSavedRecord(record){
-  await putRecord(record);
-  const saved=await getRecord(record.id);
+  const resolved=await resolveManualSaveConflict(record);
+  if(resolved.action==="cancel"){
+    toast("Guardado cancelado");
+    return false;
+  }
+
+  const toSave=resolved.record;
+  await putRecord(toSave);
+  const saved=await getRecord(toSave.id);
   if(!saved)throw new Error("SAVE_VERIFY_FAILED");
+
   lastSavedRecordId=saved.id;
   currentEditId=null;
-  toast("Registro guardado");
-  announceA11y("Registro guardado correctamente.");
+
+  if(resolved.action==="both")toast("Registro guardado como duplicado");
+  else if(resolved.action==="replace")toast("Registro reemplazado");
+  else toast("Registro guardado");
+
+  announceA11y(
+    resolved.action==="both" ? "Registro guardado como duplicado." :
+    resolved.action==="replace" ? "Registro reemplazado correctamente." :
+    "Registro guardado correctamente."
+  );
+
   await renderList("all");
   show("list");
   setTimeout(()=>{
@@ -69,6 +119,7 @@ async function finishSavedRecord(record){
       setTimeout(()=>item.classList.remove("just-saved"),2500);
     }
   },120);
+  return true;
 }
 async function putRecord(rec){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).put(rec);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
 async function getRecord(id){return new Promise((res,rej)=>{const r=db.transaction(STORE).objectStore(STORE).get(id);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}

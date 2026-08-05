@@ -1324,6 +1324,74 @@ async function exportUserFile(blob,filename){
 
 function downloadBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 
+
+function temporalHeatmapData(records){
+  const hours=[...Array(24)].map((_,i)=>i);
+  const days=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+  const matrix=Array.from({length:7},()=>Array(24).fill(0));
+  for(const r of records){
+    const d=new Date(r.fechaHora);
+    if(Number.isNaN(d.getTime()))continue;
+    const jsDay=d.getDay(); // Sun=0
+    const day=(jsDay+6)%7;  // Mon=0
+    matrix[day][d.getHours()]++;
+  }
+  const max=Math.max(1,...matrix.flat());
+  return {days,hours,matrix,max};
+}
+function heatLevel(v,max){
+  if(!v)return 0;
+  const ratio=v/max;
+  if(ratio<=.25)return 1;
+  if(ratio<=.5)return 2;
+  if(ratio<=.75)return 3;
+  return 4;
+}
+function renderTemporalHeatmap(records,title="Frecuencia por día y hora"){
+  const h=temporalHeatmapData(records);
+  const activeHours=h.hours.filter(hour=>h.matrix.some(row=>row[hour]>0));
+  const minHour=activeHours.length?Math.max(0,Math.min(...activeHours)-1):7;
+  const maxHour=activeHours.length?Math.min(23,Math.max(...activeHours)+1):18;
+  const hours=h.hours.filter(x=>x>=minHour&&x<=maxHour);
+  return `<div class="temporal-card">
+    <div class="temporal-head">
+      <h4>${esc(title)}</h4>
+      <span>${records.length} registro(s)</span>
+    </div>
+    <div class="temporal-scroll">
+      <div class="temporal-grid" style="--hours:${hours.length}">
+        <div class="temporal-corner"></div>
+        ${hours.map(x=>`<div class="temporal-hour">${String(x).padStart(2,"0")}h</div>`).join("")}
+        ${h.days.map((day,di)=>`
+          <div class="temporal-day">${day}</div>
+          ${hours.map(hour=>{
+            const v=h.matrix[di][hour],level=heatLevel(v,h.max);
+            return `<div class="temporal-cell heat-${level}" title="${day} ${String(hour).padStart(2,"0")}:00 · ${v} registro(s)">
+              ${v||""}
+            </div>`;
+          }).join("")}
+        `).join("")}
+      </div>
+    </div>
+    <div class="temporal-legend">
+      <span>Menor frecuencia</span>
+      <i class="heat-1"></i><i class="heat-2"></i><i class="heat-3"></i><i class="heat-4"></i>
+      <span>Mayor frecuencia</span>
+    </div>
+  </div>`;
+}
+function renderTemporalPatterns(records,selectedCodes){
+  if(!records.length)return '<p class="hint">No hay registros para construir el mapa horario.</p>';
+  const general=renderTemporalHeatmap(records,"Vista general");
+  const codes=[...selectedCodes];
+  if(codes.length<=1)return general;
+  const byCode=codes.map(code=>{
+    const rs=records.filter(r=>r.codigo===code);
+    return rs.length?renderTemporalHeatmap(rs,code):"";
+  }).join("");
+  return `${general}<details class="temporal-by-student"><summary>Ver por alumnado</summary><div class="temporal-student-list">${byCode}</div></details>`;
+}
+
 async function renderStats(){
  const all=await allRecords();
  const groups=studentReportGroups(all);
@@ -1360,6 +1428,7 @@ async function renderStats(){
        <label>Hasta<input id="statsTo" type="date"></label>
        <label class="checkline"><input id="statsCharts" type="checkbox" checked> Incluir gráficos</label>
        <label class="checkline"><input id="statsDetails" type="checkbox"> Incluir detalle de registros</label>
+       <label class="checkline"><input id="statsTemporal" type="checkbox" checked> Mapa horario</label>
        <button id="statsApply" type="button">Aplicar</button>
      </div>
    </div>
@@ -1421,6 +1490,7 @@ async function renderStats(){
    to:document.querySelector("#statsTo").value,
    charts:document.querySelector("#statsCharts").checked,
    details:document.querySelector("#statsDetails").checked,
+   temporal:document.querySelector("#statsTemporal").checked,
    order:document.querySelector("#statsCodeOrder").value
  });
 
@@ -1444,7 +1514,7 @@ async function renderStats(){
    <details class="support-breakdown"><summary>Ver desglose de apoyos</summary><div class="support-breakdown-grid">
      <span><b>Sí</b> ${s.supportYesCount}</span><span><b>Parcialmente</b> ${s.supportPartCount}</span><span><b>No</b> ${s.supportNoCount}</span><span><b>No valorable</b> ${s.supportNotValuable}</span>
    </div></details>
-   ${charts?`<div class="chart-grid">
+   ${state().temporal?`<section class="temporal-patterns"><div class="section-title-row"><h3>Frecuencia por día y hora</h3><button type="button" class="help-dot" data-help-title="Frecuencia por día y hora" data-help-body="${encodeURIComponent("Mapa descriptivo que muestra cuántos registros se concentran en cada día y franja horaria. Sirve para detectar patrones temporales, pero no demuestra por sí solo causas ni funciones de conducta.")}">?</button></div>${renderTemporalPatterns(rs,state().codes)}</section>`:""}${charts?`<div class="chart-grid">
      <div class="stat"><h3>Conductas</h3>${svgBars(s.conducta)}</div>
      <div class="stat"><h3>Contextos</h3>${svgBars(s.contexto)}</div>
      <div class="stat"><h3>Riesgos</h3>${svgPie(s.riesgo)}</div>

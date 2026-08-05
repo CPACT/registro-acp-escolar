@@ -1575,3 +1575,41 @@ button,.chip,.bottom-nav button{min-height:44px}
   .pie-wrap{flex-direction:column!important;align-items:center!important}
   .pie-legend{width:100%!important}
 }
+
+/* V21g — mapa temporal ACP */
+.temporal-patterns{margin:.8rem 0}
+.temporal-patterns>.section-title-row{margin-bottom:.55rem}
+.temporal-card{
+  margin:.65rem 0;padding:.7rem;border:1px solid var(--border);
+  border-radius:20px;background:#fff;overflow:hidden
+}
+.temporal-head{display:flex;justify-content:space-between;align-items:center;gap:.6rem;margin-bottom:.55rem}
+.temporal-head h4{margin:0;color:var(--brand);font-size:.92rem}
+.temporal-head span{font-size:.74rem;color:var(--muted)}
+.temporal-scroll{overflow-x:auto;padding-bottom:.2rem}
+.temporal-grid{
+  display:grid;
+  grid-template-columns:46px repeat(var(--hours),minmax(34px,1fr));
+  gap:4px;min-width:max-content
+}
+.temporal-corner,.temporal-hour,.temporal-day,.temporal-cell{
+  min-height:32px;border-radius:8px;display:grid;place-items:center;font-size:.72rem
+}
+.temporal-hour{color:var(--muted);font-weight:800}
+.temporal-day{justify-items:start;padding-left:.25rem;color:var(--text);font-weight:850}
+.temporal-cell{border:1px solid #e2ebe7;font-weight:900;color:#173e32}
+.heat-0{background:#f8fbfa}
+.heat-1{background:#e2f0ea}
+.heat-2{background:#b7d8cb}
+.heat-3{background:#78ad98;color:#163a30}
+.heat-4{background:#347b64;color:#fff}
+.temporal-legend{display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.5rem;font-size:.68rem;color:var(--muted)}
+.temporal-legend i{display:inline-block;width:18px;height:12px;border-radius:4px;border:1px solid #d8e5df}
+.temporal-by-student{margin-top:.55rem;border:1px solid var(--border);border-radius:16px;background:#fafcfb}
+.temporal-by-student summary{padding:.55rem .7rem;cursor:pointer;font-weight:850;color:var(--brand)}
+.temporal-student-list{padding:0 .65rem .65rem}
+@media(max-width:620px){
+ .temporal-grid{grid-template-columns:42px repeat(var(--hours),34px)}
+ .temporal-card{padding:.55rem}
+ .temporal-legend{justify-content:flex-start;flex-wrap:wrap}
+}

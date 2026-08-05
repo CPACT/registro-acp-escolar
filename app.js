@@ -1858,25 +1858,12 @@ async function renderExport(){
 
 async function navigate(dest){
  const protectedScreens=["form","quick","today","all","report","stats","settings"];
- const go=async()=>{if(dest==="reports"){openReportsChooser();return}if(dest==="importcsv"){openImportDialog();return}if(dest==="form"){await renderForm();show("form")}else if(dest==="quick"){renderQuick();show("quick")}else if(dest==="today"){await renderList("today");show("list")}else if(dest==="all"){await renderList("all");show("list")}else if(dest==="report"){selectedExportIds=[];await renderReport();show("report")}else if(dest==="stats"){await renderStats();show("stats")}else if(dest==="help"){renderHelp();show("help")}else if(dest==="privacy"){renderPrivacy();show("privacy")}else if(dest==="about"){renderAbout();show("about")}else if(dest==="settings"){await renderSettings();show("settings")}};
+ const go=async()=>{if(dest==="reports"){openReportsChooser();return}if(dest==="importcsv"){openImportDialog();return}if(dest==="more"){renderMore();return}if(dest==="form"){await renderForm();show("form")}else if(dest==="quick"){renderQuick();show("quick")}else if(dest==="today"){await renderList("today");show("list")}else if(dest==="all"){await renderList("all");show("list")}else if(dest==="report"){selectedExportIds=[];await renderReport();show("report")}else if(dest==="stats"){await renderStats();show("stats")}else if(dest==="help"){renderHelp();show("help")}else if(dest==="privacy"){renderPrivacy();show("privacy")}else if(dest==="about"){renderAbout();show("about")}else if(dest==="settings"){await renderSettings();show("settings")}};
  if(protectedScreens.includes(dest))requirePin(go);else go()
 }
 document.addEventListener("DOMContentLoaded",async()=>{
  try{
    db=await openDB();
-
- document.querySelectorAll("[data-bottom-nav]").forEach(b=>{
-   if(b.dataset.bottomNavBound==="1")return;
-   b.dataset.bottomNavBound="1";
-   b.addEventListener("click",async()=>{
-     const dest=b.dataset.bottomNav;
-     if(dest==="reports"){openReportsChooser();return}
-     if(dest==="list"){await renderList("all");show("list");return}
-     if(dest==="form"){await renderForm();show("form");return}
-     if(dest==="home"){await goHomeSafe();return}
-   });
- });
-
 
  document.querySelector("#confirmStudentExportBtn")?.addEventListener("click",async()=>{
    if(!pendingStudentExport)return;
@@ -2042,7 +2029,15 @@ document.addEventListener("DOMContentLoaded",async()=>{
  acpBtn?.addEventListener("click",async()=>{if(!acpCheck.checked||!acpPendingImport.length)return;for(const r of acpPendingImport)await putRecord(r);const n=acpPendingImport.length;acpPendingImport=[];document.querySelector("#importDialog")?.close();toast(`${n} registros importados`);renderHome();show("home")});
 
  
- document.querySelectorAll("[data-bottom-nav]").forEach(b=>b.addEventListener("click",()=>{const d=b.dataset.bottomNav;if(d==="home"){renderHome();show("home")}else navigate(d)}));
+ document.querySelectorAll("[data-bottom-nav]").forEach(b=>b.addEventListener("click",async()=>{
+  const d=b.dataset.bottomNav;
+  if(d==="home"){await renderHome();show("home");return}
+  if(d==="reports"){openReportsChooser();return}
+  if(d==="csv"){openImportDialog();return}
+  if(d==="list"){await renderList("all");show("list");return}
+  if(d==="form"){await renderForm();show("form");return}
+  navigate(d);
+}));
  document.querySelector("#reviewProceed").onclick=async e=>{if(!document.querySelector("#reviewConfirm").checked){e.preventDefault();return}const fn=pendingReviewAction;pendingReviewAction=null;setTimeout(async()=>{try{await fn?.()}catch(err){if(err.message!=="none"){console.error("Fallo de exportación",err?.name||"Error");alert("No se ha podido abrir el archivo para guardarlo o compartirlo. Cierra y vuelve a abrir la app; si persiste, revisaremos la integración nativa.")}}},0)};
  document.querySelector("#pinUnlockForm").onsubmit=async e=>{e.preventDefault();const p=prefs(),h=await hashPin(document.querySelector("#unlockPin").value,p.pinSalt);if(h!==p.pinHash){document.querySelector("#pinError").classList.remove("hidden");return}unlocked=true;document.querySelector("#pinDialog").close();pinNext?.();pinNext=null};
  

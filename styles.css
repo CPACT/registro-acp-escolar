@@ -1655,24 +1655,34 @@ button,.chip,.bottom-nav button{min-height:44px}
 /* V21m — flujo sin correo integrado */
 .institutional-export-note{margin-top:.65rem}
 
-/* V21n — barra inferior con cuatro acciones */
+/* V21o — cinco botones grandes con CSV */
 .bottom-nav{
-  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  gap:.22rem!important;
 }
 .bottom-nav button{
+  min-height:64px!important;
   min-width:0!important;
-  padding:.45rem .25rem!important;
-  gap:.18rem!important;
+  padding:.52rem .18rem!important;
+  border-radius:16px!important;
+  gap:.2rem!important;
 }
 .bottom-nav .bottom-icon{
-  display:block;
-  font-size:1.15rem;
-  line-height:1;
+  display:block!important;
+  font-size:1.3rem!important;
+  line-height:1!important;
 }
 .bottom-nav button>span:last-child{
   font-size:.72rem!important;
+  font-weight:800!important;
   white-space:nowrap!important;
 }
+@media(min-width:700px){
+  .bottom-nav button{min-height:68px!important;padding:.6rem .28rem!important}
+  .bottom-nav .bottom-icon{font-size:1.4rem!important}
+  .bottom-nav button>span:last-child{font-size:.8rem!important}
+}
 @media(max-width:380px){
-  .bottom-nav button>span:last-child{font-size:.68rem!important}
+  .bottom-nav button{min-height:60px!important}
+  .bottom-nav button>span:last-child{font-size:.66rem!important}
 }

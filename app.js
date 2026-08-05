@@ -317,11 +317,25 @@ async function ensureHomeVisible(){
 }
 
 
+
+async function goHomeSafe(){
+  try{
+    await renderHome();
+    show("home");
+    document.querySelector("#settingsMenu")?.classList.add("hidden");
+    document.querySelector("#headerSettingsBtn")?.setAttribute("aria-expanded","false");
+  }catch(err){
+    console.error("No se pudo volver a Inicio:",err);
+    document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
+    document.querySelector("#screen-home")?.classList.remove("hidden");
+  }
+}
+
 function screenCloseButton(){
   return `<button type="button" class="screen-close" aria-label="Cerrar" title="Cerrar">×</button>`;
 }
 function bindScreenClose(root){
-  root?.querySelector(".screen-close")?.addEventListener("click",()=>{renderHome();show("home")});
+  root?.querySelector(".screen-close")?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();goHomeSafe()});
 }
 
 
@@ -349,20 +363,15 @@ function ensureHypothesisOtherReveal(root){
   if(!root)return;
   const hip=root.querySelector('[data-section="hipotesis"]');
   if(!hip)return;
-  const chipsBox=hip.querySelector(".chips");
   const other=hip.querySelector('[name="hipotesisOtro"]');
-  if(chipsBox&&other&&!chipsBox.dataset.otherTarget){
-    chipsBox.dataset.otherTarget='[name="hipotesisOtro"]';
-  }
-  if(other){
-    const refresh=()=>{
-      const checked=[...hip.querySelectorAll('input[type="checkbox"],input[type="radio"]')].some(i=>i.checked&&/otro|otra/i.test(i.value||""));
-      other.classList.toggle("hidden",!checked);
-      if(!checked)other.value=other.value; // preserve typed text if toggled off/on
-    };
-    hip.addEventListener("change",refresh);
-    refresh();
-  }
+  if(!other)return;
+  const refresh=()=>{
+    const on=[...hip.querySelectorAll('input[type="checkbox"],input[type="radio"]')]
+      .some(i=>i.checked&&/otro|otra/i.test(i.value||""));
+    other.classList.toggle("hidden",!on);
+  };
+  hip.addEventListener("change",refresh);
+  refresh();
 }
 
 function bindOtherReveal(root){
@@ -435,7 +444,7 @@ function validateRequiredRecordFields(form){
 
 function show(id){
  document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
- const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el);bindScreenClose(el);bindCollapsibleFieldsets(el);bindOtherReveal(el);ensureHypothesisOtherReveal(el)},0);setTimeout(()=>bindHelpButtons(el),0);
+ const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el);bindScreenClose(el);bindCollapsibleFieldsets(el);bindOtherReveal(el)},0);setTimeout(()=>bindHelpButtons(el),0);
   setTimeout(()=>ensureScreenClose(id),0);
 }
 function requirePin(next){
@@ -495,15 +504,32 @@ async function renderHome(){
       <div class="install-icon">＋</div>
       <div><section class="collapsible-field" data-section="hipotesis">
   <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Hipótesis funcional provisional</h3></span><i>⌄</i>
+    <span><h3>Instalar app</h3><p>Acceso rápido desde este dispositivo.</p></div>
+      <button id="homeInstallBtn" class="secondary" type="button">Instalar app</button>
+    </div>`;
+
+  el.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>b.dataset.nav==="reports"?openReportsChooser():navigate(b.dataset.nav)));
+  el.querySelector("#homeReportsBtn")?.addEventListener("click",openReportsChooser);
+  el.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
+  el.querySelector("#homeInstallBtn")?.addEventListener("click",openInstallHelp);
+  refreshInstallUI();bindHelpButtons(el);
+}
+function formTemplate(d={}){
+ const inc=d.inclusion||{};
+ return `<form id="recordForm">
+ <div class="card screen-card">${screenCloseButton()}<div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2>${currentEditId?"":''}</div><p class="hint">Usa un código pseudónimo.</p>
+ <div class="two"><label class="required">Fecha y hora<input name="fechaHora" type="datetime-local" required value="${esc(d.fechaHora||nowLocal())}"></label>
+ <label class="required">Código pseudónimo
+  <div class="code-row"><input name="codigo" required readonly aria-readonly="true" value="${esc(d.codigo||"")}"><button type="button" class="secondary code-pick" id="chooseCodeBtn">Elegir / crear</button></div>
+  <span class="hint">No uses nombre, iniciales ni datos personales.</span>
+</label>
+ <label>Curso / grupo<input name="grupo" value="${esc(d.grupo||"")}"></label><label>Profesional que registra (iniciales o alias)<input name="profesional" value="${esc(d.profesional||"")}"></label></div></div>
+ <div class="card"><section class="collapsible-field" data-section="contexto">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Contexto escolar <button type="button" class="help-dot" data-help-title="Contexto escolar" data-help-body="Selecciona dónde ocurrió la situación. Puedes marcar varias opciones.">?</button></h3></span><i>⌄</i>
   </button>
-  <div class="collapsible-body">
-    <div class="section-help-line">
-      <span>Explicación provisional, no diagnóstico</span>
-      ${helpButton("Hipótesis, no diagnóstico","Selecciona una o varias hipótesis provisionales. Deben revisarse con varios registros y en equipo.")}
-    </div>
-    ${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
-  </div>
+  <div class="collapsible-body">${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
+ <div class="card"></div>
 </section><section class="collapsible-field" data-section="factores">
   <button type="button" class="collapsible-head" aria-expanded="false">
     <span><h3>Factores del entorno ${helpButton("Factores del entorno","Marca condiciones que pudieron influir: ruido, espera, cambios, comunicación, descanso, etc. No se usan para inferir diagnósticos.")}</h3></span><i>⌄</i>
@@ -539,15 +565,21 @@ async function renderHome(){
   </button>
   <div class="collapsible-body">${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
  <label>Descripción adicional<textarea name="consecuenciaDesc">${esc(d.consecuenciaDesc||"")}</textarea></label><p class="hint">Qué ocurrió después.</p></div>
- <div class="card"></div>
-</section><h3>Hipótesis provisional <button type="button" class="help-dot" data-help-title="Hipótesis, no diagnóstico" data-help-body="Es una explicación provisional. Necesita varios registros y revisión en equipo.">?</button></h3></span><i>⌄</i>
-  </button>
-  <div class="collapsible-body"><div class="warning"><strong>Hipótesis funcional provisional:</strong> requiere varios registros, análisis de patrones y revisión en equipo.</div>${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
- <p class="hint">Hipótesis provisional.</p></div>
- <div class="card"><section class="collapsible-field" data-section="apoyos">
+ <div class="card">
+<section class="collapsible-field" data-section="hipotesis">
   <button type="button" class="collapsible-head" aria-expanded="false">
-    <span></div>
-</section><h3>Apoyos aplicados ${helpButton("Apoyos","Registra los apoyos utilizados y si pareció que ayudaron. Esto no demuestra causalidad.")}</h3></span><i>⌄</i>
+    <span><h3>Hipótesis funcional provisional</h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">
+    <div class="section-help-line">
+      <span>Explicación provisional, no diagnóstico</span>
+      ${helpButton("Hipótesis, no diagnóstico","Selecciona una o varias hipótesis provisionales. Deben revisarse con varios registros y en equipo.")}
+    </div>
+    ${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
+    <p class="hint">Hipótesis provisional. Revisar con varios registros y en equipo.</p>
+  </div>
+</section>
+<h3>Apoyos aplicados ${helpButton("Apoyos","Registra los apoyos utilizados y si pareció que ayudaron. Esto no demuestra causalidad.")}</h3></span><i>⌄</i>
   </button>
   <div class="collapsible-body">${chips("apoyos",OPT.apoyos,d.apoyos||[],"apoyosOtro",d.apoyosOtro||"")}
  <label>¿Pareció ayudar?<select name="apoyoValoracion"><option></option>${["Sí","Parcialmente","No","No valorable"].map(x=>`<option ${d.apoyoValoracion===x?"selected":""}>${x}</option>`).join("")}</select></label><p class="hint">No demuestra causalidad.</p></div>
@@ -587,7 +619,22 @@ async function renderForm(data=null){
  let start=0,tick=null;const disp=document.querySelector("#timerDisplay");
  document.querySelector("#timerStart").onclick=()=>{start=Date.now();document.querySelector("#timerStart").disabled=true;document.querySelector("#timerStop").disabled=false;tick=setInterval(()=>disp.textContent=`${Math.floor((Date.now()-start)/1000)} s`,1000)};
  document.querySelector("#timerStop").onclick=()=>{clearInterval(tick);const secs=Math.max(1,Math.floor((Date.now()-start)/1000));f.elements.duracionValor.value=secs;f.elements.duracionUnidad.value="segundos";disp.textContent=`${secs} s`;document.querySelector("#timerStart").disabled=false;document.querySelector("#timerStop").disabled=true};
- f.onsubmit=async e=>{e.preventDefault();const base=currentEditId?await getRecord(currentEditId):{};const rec=recordFromForm(f,base);await putRecord(rec);currentEditId=null;toast("Registro guardado");await renderList("all");show("list")}
+ f.onsubmit=async e=>{
+   e.preventDefault();
+   if(!validateRequiredRecordFields(f))return;
+   const base=currentEditId?await getRecord(currentEditId):{};
+   const rec=recordFromForm(f,base);
+   await putRecord(rec);
+   lastSavedRecordId=rec.id;
+   currentEditId=null;
+   toast("Registro guardado");
+   await renderList("all");
+   show("list");
+   setTimeout(()=>{
+     const item=document.querySelector(`#listWrap [data-id="${CSS.escape(rec.id)}"]`);
+     if(item){item.classList.add("just-saved");item.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>item.classList.remove("just-saved"),2500)}
+   },100);
+ }
 }
 function quickTemplate(d={}){
  return `<form id="quickForm"><div class="card screen-card">${screenCloseButton()}<h2>Registro rápido</h2><div class="two"><label class="required">Código pseudónimo<div class="code-row"><input name="codigo" required readonly value="${esc(d.codigo||"")}"><button type="button" id="quickChooseCodeBtn" class="secondary">Elegir / crear</button></div></label><label>Fecha y hora<input type="datetime-local" name="fechaHora" value="${esc(d.fechaHora||nowLocal())}"></label></div>
@@ -628,7 +675,20 @@ function quickToRecord(form){
 function renderQuick(){
  document.querySelector("#screen-quick").innerHTML=quickTemplate();bindSpec(document.querySelector("#screen-quick"));const f=document.querySelector("#quickForm");document.querySelector("#quickChooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);ensureHypothesisOtherReveal(f);
  document.querySelector("#quickCancel").onclick=()=>{renderHome();show("home")};
- f.onsubmit=async e=>{e.preventDefault();const r=quickToRecord(f);await putRecord(r);toast("Guardado");renderList("today");show("list")};
+ f.onsubmit=async e=>{
+   e.preventDefault();
+   if(!validateRequiredRecordFields(f))return;
+   const r=quickToRecord(f);
+   await putRecord(r);
+   lastSavedRecordId=r.id;
+   toast("Registro guardado");
+   await renderList("all");
+   show("list");
+   setTimeout(()=>{
+     const item=document.querySelector(`#listWrap [data-id="${CSS.escape(r.id)}"]`);
+     if(item){item.classList.add("just-saved");item.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>item.classList.remove("just-saved"),2500)}
+   },100);
+ };
  document.querySelector("#quickComplete").onclick=async()=>{if(!f.reportValidity())return;const r=quickToRecord(f);currentEditId=null;await renderForm(r);show("form")}
 }
 function summaryRecord(r){
@@ -1199,7 +1259,18 @@ async function navigate(dest){
  if(protectedScreens.includes(dest))requirePin(go);else go()
 }
 document.addEventListener("DOMContentLoaded",async()=>{
- db=await openDB();
+ try{
+   db=await openDB();
+ }catch(err){
+   console.error("No se pudo abrir el almacenamiento local:",err);
+   const h=document.querySelector("#screen-home");
+   if(h){
+     h.innerHTML='<div class="card"><h2>Registro ACP Escolar</h2><p>No se pudo abrir el almacenamiento local.</p><button id="retryStorage">Reintentar</button></div>';
+     show("home");
+     document.querySelector("#retryStorage")?.addEventListener("click",()=>location.reload());
+   }
+   return;
+ }
 
  document.addEventListener("submit",e=>{
    const form=e.target;

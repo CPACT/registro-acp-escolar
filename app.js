@@ -272,9 +272,17 @@ async function ensureHomeVisible(){
   }
 }
 
+
+function screenCloseButton(){
+  return `<button type="button" class="screen-close" aria-label="Cerrar" title="Cerrar">×</button>`;
+}
+function bindScreenClose(root){
+  root?.querySelector(".screen-close")?.addEventListener("click",()=>{renderHome();show("home")});
+}
+
 function show(id){
  document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
- const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el)},0);setTimeout(()=>bindHelpButtons(el),0);
+ const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el);bindScreenClose(el)},0);setTimeout(()=>bindHelpButtons(el),0);
 }
 function requirePin(next){
  const p=prefs(); if(!p.pinEnabled||unlocked){next();return}
@@ -305,18 +313,7 @@ async function renderHome(){
   const el=document.querySelector("#screen-home");
   const retention=old?`<div class="compact-note"><strong>${old} registro(s) para revisar</strong><button type="button" class="help-dot" data-help-title="Revisión de datos" data-help-body="Revisa si sigue siendo necesario conservar estos registros. La aplicación no borra automáticamente.">?</button></div>`:"";
   el.innerHTML=`
-    <div class="card hero home-hero">
-      <div class="hero-copy">
-        <span class="app-kicker">ACP · Registro educativo</span>
-        <h2>Observar · Comprender · Apoyar</h2>
-        <span class="privacy-pill">Datos en este dispositivo</span>
-      </div>
-      ${retention}
-    </div>
-
-    <button id="howUseBtn" class="how-use" type="button" aria-haspopup="dialog">
-      <span class="how-icon">?</span><strong>Cómo funciona</strong><span class="chev">›</span>
-    </button>
+    ${retention}
 
     <section class="home-section register-zone" aria-labelledby="home-registro-title">
       <div class="home-section-head centered"><h2 id="home-registro-title">Registro</h2></div>
@@ -336,9 +333,9 @@ async function renderHome(){
       </button>
     </section>
 
-    <div class="home-tools compact-tools">
-      <button id="homeCsvImportBtn" class="secondary" type="button">↑ Importar CSV</button>
-      <span>Traer registros</span>
+    <div class="home-utility-row">
+      <button id="homeCsvImportBtn" class="utility-btn" type="button">↑ Importar CSV</button>
+      <button id="howUseBtn" class="utility-btn subtle" type="button"><span class="help-mini">?</span> Cómo se usa</button>
     </div>
 
     <div class="install-card compact-install">
@@ -351,7 +348,7 @@ async function renderHome(){
   el.querySelector("#homeReportsBtn")?.addEventListener("click",openReportsChooser);
   el.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
   el.querySelector("#homeInstallBtn")?.addEventListener("click",openInstallHelp);
-  el.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo funciona",`
+  el.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo se usa",`
     <div class="install-steps"><b>1</b><span><strong>Observa</strong>.</span><b>2</b><span><strong>Registra hechos</strong>.</span><b>3</b><span><strong>Revisa patrones</strong>.</span><b>4</b><span><strong>Planifica apoyos</strong>.</span></div>
     <p class="hint">Las hipótesis son provisionales y no son diagnósticos.</p>
   `));
@@ -360,7 +357,7 @@ async function renderHome(){
 function formTemplate(d={}){
  const inc=d.inclusion||{};
  return `<form id="recordForm">
- <div class="card"><div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2>${currentEditId?"":'<button type="button" class="secondary small" id="importFromForm">Importar CSV</button>'}</div><p class="hint">Usa un código pseudónimo.</p>
+ <div class="card screen-card">${screenCloseButton()}<div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2>${currentEditId?"":'<button type="button" class="secondary small" id="importFromForm">Importar CSV</button>'}</div><p class="hint">Usa un código pseudónimo.</p>
  <div class="two"><label class="required">Fecha y hora<input name="fechaHora" type="datetime-local" required value="${esc(d.fechaHora||nowLocal())}"></label>
  <label class="required">Código pseudónimo
   <div class="code-row"><input name="codigo" required readonly aria-readonly="true" value="${esc(d.codigo||"")}"><button type="button" class="secondary code-pick" id="chooseCodeBtn">Elegir / crear</button></div>
@@ -416,7 +413,7 @@ async function renderForm(data=null){
  f.onsubmit=async e=>{e.preventDefault();const base=currentEditId?await getRecord(currentEditId):{};const rec=recordFromForm(f,base);await putRecord(rec);currentEditId=null;toast("Registro guardado");await renderList("all");show("list")}
 }
 function quickTemplate(d={}){
- return `<form id="quickForm"><div class="card"><h2>Registro rápido</h2><div class="two"><label class="required">Código pseudónimo<div class="code-row"><input name="codigo" required readonly value="${esc(d.codigo||"")}"><button type="button" id="quickChooseCodeBtn" class="secondary">Elegir / crear</button></div></label><label>Fecha y hora<input type="datetime-local" name="fechaHora" value="${esc(d.fechaHora||nowLocal())}"></label></div>
+ return `<form id="quickForm"><div class="card screen-card">${screenCloseButton()}<h2>Registro rápido</h2><div class="two"><label class="required">Código pseudónimo<div class="code-row"><input name="codigo" required readonly value="${esc(d.codigo||"")}"><button type="button" id="quickChooseCodeBtn" class="secondary">Elegir / crear</button></div></label><label>Fecha y hora<input type="datetime-local" name="fechaHora" value="${esc(d.fechaHora||nowLocal())}"></label></div>
  <h3>Contexto</h3>${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}<h3>Antecedente</h3>${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
  <h3>Conducta</h3>${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}<label class="required">Descripción objetiva breve<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
  <h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
@@ -868,7 +865,7 @@ function downloadBlob(blob,name){const a=document.createElement("a");a.href=URL.
 
 async function renderStats(){
  const all=await allRecords(),codes=[...new Set(all.map(r=>r.codigo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
- document.querySelector("#screen-stats").innerHTML=`<div class="card"><h2>Patrones descriptivos</h2>
+ document.querySelector("#screen-stats").innerHTML=`<div class="card screen-card">${screenCloseButton()}<h2>Patrones descriptivos</h2>
  <p class="hint">Resumen local. No demuestra la función de una conducta ni realiza diagnósticos.</p>
  <details class="filter-panel"><summary>Filtros y opciones</summary><div class="stats-controls">
    <label>Código pseudónimo<select id="statsCode"><option value="all">Todos</option>${codes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
@@ -995,7 +992,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
    if(b.dataset.reportChoice==="stats")navigate("stats");else navigate("report");
  }));
 
- document.querySelector("#headerSettingsBtn")?.addEventListener("click",()=>navigate("settings"));
+ 
  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;});
  window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;localStorage.setItem(PWA_FLAG,"1");toast("App instalada");refreshInstallUI();});
  window.addEventListener("pageshow",()=>{setTimeout(()=>ensureHomeVisible().catch(()=>{}),50)});

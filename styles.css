@@ -1168,3 +1168,63 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .register-zone,.reports-zone{max-width:100%}
  .report-choice-grid{grid-template-columns:1fr}
 }
+
+/* V19 — banner, overlay settings, compact home */
+.hero-header{
+  position:relative!important;
+  min-height:132px!important;
+  padding:1.2rem max(1.2rem,calc((100vw - var(--max))/2))!important;
+  overflow:hidden!important;
+  background:
+    radial-gradient(circle at 78% 28%,rgba(255,255,255,.13),transparent 22%),
+    linear-gradient(135deg,#1f5a49 0%,#2f725d 58%,#3f876f 100%)!important;
+}
+.header-illustration{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.orb{position:absolute;border-radius:50%;background:rgba(255,255,255,.08)}
+.orb-a{width:210px;height:210px;right:7%;top:-110px}
+.orb-b{width:120px;height:120px;right:22%;bottom:-65px}
+.leaf{position:absolute;width:72px;height:28px;border:2px solid rgba(255,255,255,.12);border-radius:100% 0 100% 0;transform:rotate(28deg)}
+.leaf-a{right:18%;top:42px}.leaf-b{right:11%;top:72px;transform:rotate(-18deg)}
+.hero-header .brand-lockup{position:relative;z-index:2;align-self:flex-end}
+.hero-header .brand-icon{
+  width:62px!important;height:62px!important;flex-basis:62px!important;border-radius:20px!important;
+  background:rgba(255,255,255,.92)!important;color:#2b6754!important;box-shadow:0 8px 28px rgba(12,49,39,.2)!important
+}
+.hero-header .brand-text h1{font-size:1.35rem!important;color:#fff!important}
+.hero-header .brand-text p{font-size:.82rem!important;color:rgba(255,255,255,.82)!important;margin-top:.15rem!important}
+.hero-header .header-gear{
+  position:absolute!important;right:max(1rem,calc((100vw - var(--max))/2))!important;top:1rem!important;z-index:3!important;
+  background:rgba(255,255,255,.14)!important;border:1px solid rgba(255,255,255,.2)!important
+}
+.settings-popover{top:68px!important}
+.register-zone{margin-top:1rem!important}
+.home-utility-row{
+  display:flex;justify-content:space-between;gap:.6rem;align-items:center;
+  max-width:620px;margin:.7rem auto!important
+}
+.utility-btn{
+  min-height:42px!important;border-radius:18px!important;padding:.45rem .75rem!important;
+  background:#eef6f2!important;color:var(--brand)!important;border:1px solid #d3e3dc!important;
+  box-shadow:none!important;font-weight:800!important
+}
+.utility-btn.subtle{background:#fff!important}
+.help-mini{
+  display:inline-grid;width:22px;height:22px;border-radius:50%;place-items:center;
+  background:#dfeee8;color:#2f6d58;font-weight:900;margin-right:.2rem
+}
+.screen-card{position:relative!important;padding-top:1.25rem!important}
+.screen-close{
+  position:absolute!important;right:.75rem!important;top:.65rem!important;
+  width:36px!important;height:36px!important;min-height:36px!important;padding:0!important;
+  border-radius:50%!important;background:#eef3f1!important;color:#315f51!important;
+  border:1px solid #d5e2dd!important;box-shadow:none!important;font-size:1.35rem!important;z-index:5
+}
+@media(max-width:600px){
+  .hero-header{min-height:112px!important;padding:.9rem .8rem!important}
+  .hero-header .brand-icon{width:52px!important;height:52px!important;flex-basis:52px!important;border-radius:17px!important}
+  .hero-header .brand-text h1{font-size:1.05rem!important}
+  .hero-header .brand-text p{font-size:.72rem!important;display:block!important}
+  .hero-header .header-gear{right:.7rem!important;top:.7rem!important}
+  .home-utility-row{max-width:100%;margin:.55rem 0!important}
+  .utility-btn{flex:1}
+}

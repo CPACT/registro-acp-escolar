@@ -498,3 +498,18 @@ body{padding-bottom:88px}
   .install-card{grid-template-columns:auto 1fr}
   .install-card button{grid-column:1/-1;width:100%}
 }
+
+:root{--radius-xl:28px;--radius-lg:22px;--radius-md:18px}
+button{border-radius:18px}
+.grid-buttons button{border-radius:24px;min-height:94px;padding:.9rem 3rem .9rem 1rem}
+.card{border-radius:26px}
+.chip span{border-radius:18px}
+input[type=text],input[type=password],input[type=number],input[type=datetime-local],input[type=date],input[type=email],select,textarea{border-radius:16px}
+.section-title-row{display:flex;align-items:center;justify-content:space-between;gap:.7rem}
+.file-drop{display:block;border:2px dashed #bdd5ca;border-radius:22px;padding:1.1rem;text-align:center;background:#f7fbf9;cursor:pointer}
+.file-drop input{display:block;margin:.7rem auto 0;max-width:100%}
+.import-summary{padding:.8rem 1rem;border-radius:16px;background:#edf6f2;border:1px solid #d4e7df;margin:.8rem 0}
+.dialog-card p{margin:.35rem 0}
+.install-steps{margin:.4rem 0 .2rem;padding-left:1.25rem}
+.install-steps li{margin:.25rem 0}
+@media(max-width:560px){.grid-buttons{gap:.6rem}.grid-buttons button{min-height:84px}.card{padding:.9rem}.section-title-row{align-items:flex-start}}

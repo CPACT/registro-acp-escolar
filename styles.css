@@ -1646,3 +1646,11 @@ button,.chip,.bottom-nav button{min-height:44px}
 
 /* V21k — ayuda contextual Intensidad/Riesgo */
 .inline-help{display:inline-grid!important;vertical-align:middle;margin-left:.25rem}
+
+/* V21l — nota de privacidad de exportaciones */
+.privacy-note{margin:.65rem 0;padding:.7rem .8rem;border:1px solid var(--border);border-radius:16px;background:#f7faf9}
+.privacy-note strong{color:var(--brand)}
+.privacy-note p{margin:.25rem 0 0;font-size:.82rem;line-height:1.4}
+
+/* V21m — flujo sin correo integrado */
+.institutional-export-note{margin-top:.65rem}

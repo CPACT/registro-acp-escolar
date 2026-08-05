@@ -1699,3 +1699,15 @@ button,.chip,.bottom-nav button{min-height:44px}
   .csv-conflict-actions{display:grid!important;grid-template-columns:1fr 1fr}
   .csv-conflict-actions button:first-child{grid-column:1/-1}
 }
+
+/* V21r — duplicados conservados */
+.badge-duplicate{
+  display:inline-flex;align-items:center;
+  margin-left:.35rem;padding:.18rem .45rem;
+  border-radius:999px;
+  background:#fff2cc;color:#6f5600;
+  border:1px solid #e3c865;
+  font-size:.68rem;font-weight:900;
+}
+.csv-conflict-card{max-width:560px}
+.csv-conflict-actions{display:grid!important;grid-template-columns:1fr 1fr;gap:.55rem!important}

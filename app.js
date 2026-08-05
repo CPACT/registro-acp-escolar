@@ -1014,62 +1014,52 @@ function findCsvMinuteMatch(existingRecords,incoming){
   if(!code||!key)return null;
   return existingRecords.find(r=>String(r.codigo||"").trim()===code && minuteKey(r.fechaHora)===key)||null;
 }
-function askCsvConflict(existing,incoming,diffs){
+function askCsvConflict(existing,incoming,diffs=[]){
   return new Promise(resolve=>{
     const d=document.querySelector("#csvConflictDialog");
     const summary=document.querySelector("#csvConflictSummary");
-    const box=document.querySelector("#csvConflictDiffs");
     if(!d){resolve("cancel");return}
-    const same=!diffs.length;
-    summary.textContent=same
-      ? `Ya existe un registro del código ${incoming.codigo} en la misma fecha y minuto y todos los datos coinciden.`
-      : `Ya existe un registro del código ${incoming.codigo} en la misma fecha y minuto, pero hay ${diffs.length} diferencia(s).`;
-    box.innerHTML=same
-      ? `<div class="csv-same-note">Los dos registros son idénticos.</div>`
-      : `<div class="table-wrap"><table><thead><tr><th>Campo</th><th>Guardado</th><th>CSV</th></tr></thead><tbody>${diffs.map(x=>`<tr><td>${esc(x.label)}</td><td>${esc(x.existing||"—")}</td><td>${esc(x.incoming||"—")}</td></tr>`).join("")}</tbody></table></div>`;
-    const replace=document.querySelector("#csvConflictReplace");
+    const when=new Date(incoming.fechaHora);
+    const whenText=Number.isNaN(when.getTime())?String(incoming.fechaHora||""):when.toLocaleString("es-ES",{dateStyle:"short",timeStyle:"short"});
+    summary.textContent=`Ya existe un registro del código ${incoming.codigo} en la misma fecha y hora (${whenText}).`;
     const both=document.querySelector("#csvConflictKeepBoth");
-    replace.textContent=same?"Omitir duplicado":"Reemplazar";
-    const cleanup=()=>{
-      replace.onclick=null;both.onclick=null;
-      d.removeEventListener("close",onClose);
-    };
-    const finish=(action)=>{cleanup();d.close();resolve(action)};
+    const cleanup=()=>{both.onclick=null;d.removeEventListener("close",onClose)};
+    const finish=action=>{cleanup();d.close();resolve(action)};
     const onClose=()=>{cleanup();resolve("cancel")};
     d.addEventListener("close",onClose,{once:true});
-    replace.onclick=()=>finish(same?"skip":"replace");
     both.onclick=()=>finish("both");
     d.showModal();
   });
 }
 async function importCsvRecordsWithConflictResolution(records){
   const existing=await allRecords();
-  let imported=0,replaced=0,skipped=0,keptBoth=0;
+  let imported=0,duplicates=0;
   for(const incoming0 of records){
     const incoming={...incoming0};
     if(!incoming.id)incoming.id=uid();
+
     const match=findCsvMinuteMatch(existing,incoming);
     if(!match){
-      await putRecord(incoming);existing.push(incoming);imported++;continue;
-    }
-    const diffs=compareCsvRecord(match,incoming);
-    const action=await askCsvConflict(match,incoming,diffs);
-    if(action==="cancel")return {cancelled:true,imported,replaced,skipped,keptBoth};
-    if(action==="skip"){skipped++;continue}
-    if(action==="replace"){
-      incoming.id=match.id;
-      incoming.createdAt=match.createdAt||incoming.createdAt||new Date().toISOString();
-      incoming.updatedAt=new Date().toISOString();
       await putRecord(incoming);
-      const i=existing.findIndex(r=>r.id===match.id);if(i>=0)existing[i]=incoming;
-      replaced++;continue;
+      existing.push(incoming);
+      imported++;
+      continue;
     }
-    if(action==="both"){
-      incoming.id=uid();
-      await putRecord(incoming);existing.push(incoming);keptBoth++;continue;
-    }
+
+    const action=await askCsvConflict(match,incoming,[]);
+    if(action==="cancel")return {cancelled:true,imported,duplicates};
+
+    incoming.id=uid();
+    incoming.duplicado=true;
+    incoming.duplicadoDe=match.id;
+    incoming.updatedAt=new Date().toISOString();
+    incoming.createdAt=incoming.createdAt||incoming.updatedAt;
+
+    await putRecord(incoming);
+    existing.push(incoming);
+    duplicates++;
   }
-  return {cancelled:false,imported,replaced,skipped,keptBoth};
+  return {cancelled:false,imported,duplicates};
 }
 
 function openImportDialog(){
@@ -1092,7 +1082,7 @@ function acpParseCSV(text){
 }
 function acpList(v){return String(v||"").split("|").map(x=>x.trim()).filter(Boolean)}
 function acpImportedRecord(o){
-  return {id:uid(),demo:String(o.demo||"").toUpperCase()==="DEMO",fechaHora:o.fechaHora||nowLocal(),codigo:String(o.codigo||"").trim(),
+  return {id:uid(),demo:String(o.demo||"").toUpperCase()==="DEMO",duplicado:String(o.duplicado||"").toUpperCase()==="DUPLICADO",fechaHora:o.fechaHora||nowLocal(),codigo:String(o.codigo||"").trim(),
     grupo:o.grupo||"",profesional:o.profesional||"",contexto:acpList(o.contexto),contextoOtro:o.contextoEspecificar||o.contextoOtro||"",
     factores:acpList(o.factores),factoresOtro:o.factoresEspecificar||o.factoresOtro||"",antecedente:acpList(o.antecedente),
     antecedenteOtro:o.antecedenteEspecificar||o.antecedenteOtro||"",antecedenteDesc:o.antecedenteDescripcion||o.antecedenteDesc||"",
@@ -1120,7 +1110,7 @@ function openImportDialog(){
 
 function flat(r){
  const val=x=>(x||[]).join(" | ");
- const out={id:r.id,demo:r.demo?"DEMO":"",fechaHora:r.fechaHora,codigo:r.codigo,grupo:r.grupo||"",profesional:r.profesional||"",contexto:val(r.contexto),contextoEspecificar:r.contextoOtro||"",factoresEntorno:val(r.factores),factoresEspecificar:r.factoresOtro||"",antecedente:val(r.antecedente),antecedenteEspecificar:r.antecedenteOtro||"",antecedenteDescripcion:r.antecedenteDesc||"",conductaObservada:val(r.conducta),conductaEspecificar:r.conductaOtro||"",conductaDescripcion:r.conductaDesc||"",duracionValor:r.duracionValor??"",duracionUnidad:r.duracionUnidad||"",frecuencia:r.frecuencia??"",intensidad:r.intensidad??"",riesgo:r.riesgo||"",consecuencia:val(r.consecuencia),consecuenciaEspecificar:r.consecuenciaOtro||"",consecuenciaDescripcion:r.consecuenciaDesc||"",hipotesisFuncionalProvisional:val(r.hipotesis),hipotesisEspecificar:r.hipotesisOtro||"",apoyosAplicados:val(r.apoyos),apoyosEspecificar:r.apoyosOtro||"",parecioAyudar:r.apoyoValoracion||"",proximaVez:val(r.proxima),proximaEspecificar:r.proximaOtro||"",proximaNota:r.proximaTexto||""};
+ const out={id:r.id,demo:r.demo?"DEMO":"",duplicado:r.duplicado?"DUPLICADO":"",fechaHora:r.fechaHora,codigo:r.codigo,grupo:r.grupo||"",profesional:r.profesional||"",contexto:val(r.contexto),contextoEspecificar:r.contextoOtro||"",factoresEntorno:val(r.factores),factoresEspecificar:r.factoresOtro||"",antecedente:val(r.antecedente),antecedenteEspecificar:r.antecedenteOtro||"",antecedenteDescripcion:r.antecedenteDesc||"",conductaObservada:val(r.conducta),conductaEspecificar:r.conductaOtro||"",conductaDescripcion:r.conductaDesc||"",duracionValor:r.duracionValor??"",duracionUnidad:r.duracionUnidad||"",frecuencia:r.frecuencia??"",intensidad:r.intensidad??"",riesgo:r.riesgo||"",consecuencia:val(r.consecuencia),consecuenciaEspecificar:r.consecuenciaOtro||"",consecuenciaDescripcion:r.consecuenciaDesc||"",hipotesisFuncionalProvisional:val(r.hipotesis),hipotesisEspecificar:r.hipotesisOtro||"",apoyosAplicados:val(r.apoyos),apoyosEspecificar:r.apoyosOtro||"",parecioAyudar:r.apoyoValoracion||"",proximaVez:val(r.proxima),proximaEspecificar:r.proximaOtro||"",proximaNota:r.proximaTexto||""};
  INCLUSION.forEach(k=>out[`inclusion_${k}`]=r.inclusion?.[k]||"");return out
 }
 

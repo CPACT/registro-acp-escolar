@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#2f6658">
-  <meta name="acp-build" content="pwa-final-v21q-2026-08-05">
+  <meta name="acp-build" content="pwa-final-v21r-2026-08-05">
   <meta name="description" content="Registro ACP Escolar — Observar · Comprender · Prevenir · Apoyar">
   <title>Registro ACP Escolar</title>
   <link rel="manifest" href="manifest.webmanifest">
@@ -263,15 +263,16 @@
 <dialog id="csvConflictDialog">
   <form method="dialog" class="dialog-card csv-conflict-card">
     <div class="modal-head">
-      <h2>Posible registro duplicado</h2>
+      <h2>Posible duplicado</h2>
       <button value="cancel" class="icon-close" aria-label="Cerrar">×</button>
     </div>
     <p id="csvConflictSummary" class="hint"></p>
-    <div id="csvConflictDiffs" class="csv-conflict-diffs"></div>
+    <div class="csv-same-note">
+      Se guardarán ambos registros. El nuevo quedará marcado como <strong>Duplicado</strong> para que pueda revisarse después.
+    </div>
     <div class="actions csv-conflict-actions">
-      <button id="csvConflictCancel" value="cancel" class="secondary">Cancelar</button>
-      <button id="csvConflictKeepBoth" type="button" class="secondary">Guardar ambos</button>
-      <button id="csvConflictReplace" type="button">Reemplazar</button>
+      <button value="cancel" class="secondary">Cancelar</button>
+      <button id="csvConflictKeepBoth" type="button">Guardar ambos</button>
     </div>
   </form>
 </dialog>

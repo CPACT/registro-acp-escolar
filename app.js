@@ -1081,15 +1081,19 @@ function statsData(rs){
   const part=rated.filter(r=>r.apoyoValoracion==="Parcialmente").length;
   const no=rated.filter(r=>r.apoyoValoracion==="No").length;
   const notValuable=rs.filter(r=>r.apoyoValoracion==="No valorable").length;
+  const weightedPoints=yes+(part*0.5);
   return {
-    total:rs.length,codes:countField(rs,"codigo"),contexto:countField(rs,"contexto"),conducta:countField(rs,"conducta"),antecedente:countField(rs,"antecedente"),consecuencia:countField(rs,"consecuencia"),
-    intensidad:countField(rs,"intensidad"),riesgo:countField(rs,"riesgo"),hipotesis:countField(rs,"hipotesis"),apoyos:countField(rs,"apoyos"),
+    total:rs.length,
+    codes:countField(rs,"codigo"),contexto:countField(rs,"contexto"),conducta:countField(rs,"conducta"),
+    antecedente:countField(rs,"antecedente"),consecuencia:countField(rs,"consecuencia"),
+    intensidad:countField(rs,"intensidad"),riesgo:countField(rs,"riesgo"),
+    hipotesis:countField(rs,"hipotesis"),apoyos:countField(rs,"apoyos"),
     avgDuration:durations.length?Math.round(durations.reduce((a,b)=>a+b,0)/durations.length):0,
-    supportUseful:rated.length?Math.round((yes+part)/rated.length*100):0,
-    supportYes:rated.length?Math.round(yes/rated.length*100):0,
+    supportUseful:rated.length?Math.round((weightedPoints/rated.length)*100):0,
+    supportYes:rated.length?Math.round((yes/rated.length)*100):0,
     supportRated:rated.length,
     supportYesCount:yes,supportPartCount:part,supportNoCount:no,supportNotValuable:notValuable
-  }
+  };
 }
 function humanRows(map,limit=20){return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,limit)}
 async function buildStatsDocx(rs,opt={}){
@@ -1103,7 +1107,7 @@ async function buildStatsDocx(rs,opt={}){
   const codeLabel=opt.code&&opt.code!=="all"?opt.code:"Todos los códigos";
   let body=docxP("REGISTRO ACP ESCOLAR",{bold:true,size:32,color:"1F4F41"})+docxP("Patrones descriptivos",{bold:true,size:26})+docxP(`Ámbito: ${codeLabel} · Registros: ${rs.length}`,{size:20})+
     docxP("Las frecuencias y correlaciones observadas no demuestran por sí mismas la función de una conducta.",{size:18,color:"7A5A22"})+
-    docxTable([["Indicador","Valor"],["Registros",String(s.total)],["Duración media",`${s.avgDuration} s`],["Apoyo útil (Sí o parcialmente)",`${s.supportUseful}%`],["Apoyo marcado Sí",`${s.supportYes}%`],["Registros valorados",String(s.supportRated)]])+
+    docxTable([["Indicador","Valor"],["Registros",String(s.total)],["Duración media",`${s.avgDuration} s`],["Índice de utilidad del apoyo",`${s.supportUseful}%`],["Apoyo marcado Sí",`${s.supportYes}%`],["Registros valorados",String(s.supportRated)]])+
     docxP("Frecuencia por código pseudónimo",{bold:true,size:22,after:100})+docxTable([["Código","Registros"],...humanRows(s.codes).map(([a,b])=>[a,String(b)])])+
     docxP("Conductas más registradas",{bold:true,size:22,after:100})+docxTable([["Conducta","Frecuencia"],...humanRows(s.conducta).map(([a,b])=>[a,String(b)])])+
     docxP("Contextos",{bold:true,size:22,after:100})+docxTable([["Contexto","Frecuencia"],...humanRows(s.contexto).map(([a,b])=>[a,String(b)])])+
@@ -1136,7 +1140,7 @@ function xlsxRow(vals,header=false){return `<row>${vals.map(v=>xlsxCell(v,header
 async function buildStatsXlsx(rs,opt={}){
   const s=statsData(rs),flatRows=rs.map(flat),heads=flatRows.length?Object.keys(flatRows[0]):["codigo"];
   const sheet1=`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${xlsxRow(heads,true)}${flatRows.map(r=>xlsxRow(heads.map(h=>r[h]))).join("")}</sheetData></worksheet>`;
-  const summary=[["REGISTRO ACP ESCOLAR — Patrones descriptivos",""],["Registros",s.total],["Duración media (s)",s.avgDuration],["Apoyo útil — Sí o parcialmente (%)",s.supportUseful],["Apoyo marcado Sí (%)",s.supportYes],["Registros valorados",s.supportRated],["",""],["Código pseudónimo","Registros"],...humanRows(s.codes),["",""],["Conducta","Frecuencia"],...humanRows(s.conducta),["",""],["Contexto","Frecuencia"],...humanRows(s.contexto),["",""],["Riesgo","Frecuencia"],...humanRows(s.riesgo)];
+  const summary=[["REGISTRO ACP ESCOLAR — Patrones descriptivos",""],["Registros",s.total],["Duración media (s)",s.avgDuration],["Índice de utilidad del apoyo (%)",s.supportUseful],["Apoyo marcado Sí (%)",s.supportYes],["Registros valorados",s.supportRated],["",""],["Código pseudónimo","Registros"],...humanRows(s.codes),["",""],["Conducta","Frecuencia"],...humanRows(s.conducta),["",""],["Contexto","Frecuencia"],...humanRows(s.contexto),["",""],["Riesgo","Frecuencia"],...humanRows(s.riesgo)];
   const sheet2=`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${summary.map((r,i)=>xlsxRow(r,i===0||r[0]==="Código pseudónimo"||r[0]==="Conducta"||r[0]==="Contexto"||r[0]==="Riesgo")).join("")}</sheetData></worksheet>`;
   let sheet3=`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${xlsxRow(["Gráficos visuales incluidos en el informe PDF/DOCX. Esta hoja mantiene los datos fuente."],true)}</sheetData></worksheet>`,extra=[],sheet3rel="";
   if(opt.charts){
@@ -1392,6 +1396,43 @@ function renderTemporalPatterns(records,selectedCodes){
   return `${general}<details class="temporal-by-student"><summary>Ver por alumnado</summary><div class="temporal-student-list">${byCode}</div></details>`;
 }
 
+
+function hourlyFrequencyData(records){
+  const counts=Array(24).fill(0);
+  for(const r of records){
+    const d=new Date(r.fechaHora);
+    if(!Number.isNaN(d.getTime()))counts[d.getHours()]++;
+  }
+  const active=counts.map((v,i)=>v?i:null).filter(v=>v!==null);
+  const min=active.length?Math.max(0,Math.min(...active)-1):7;
+  const max=active.length?Math.min(23,Math.max(...active)+1):18;
+  return counts.map((v,h)=>({hour:h,count:v})).filter(x=>x.hour>=min&&x.hour<=max);
+}
+function renderHourlyLineChart(records,title="Frecuencia por hora"){
+  const data=hourlyFrequencyData(records);
+  const max=Math.max(1,...data.map(d=>d.count));
+  const width=760,height=260,padL=48,padR=24,padT=34,padB=42;
+  const plotW=width-padL-padR,plotH=height-padT-padB;
+  const points=data.map((d,i)=>{
+    const x=padL+(data.length===1?plotW/2:(i/(data.length-1))*plotW);
+    const y=padT+plotH-(d.count/max)*plotH;
+    return {...d,x,y};
+  });
+  const path=points.map((p,i)=>`${i?"L":"M"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  return `<div class="hour-line-card">
+    <div class="temporal-head"><h4>${esc(title)}</h4><span>${records.length} registro(s)</span></div>
+    <div class="hour-line-scroll">
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(title)}">
+        ${[0,.25,.5,.75,1].map(fr=>{const y=padT+plotH-(fr*plotH),v=Math.round(fr*max);return `<line x1="${padL}" y1="${y}" x2="${width-padR}" y2="${y}" class="line-grid"/><text x="${padL-10}" y="${y+4}" text-anchor="end" class="line-axis">${v}</text>`}).join("")}
+        <line x1="${padL}" y1="${padT+plotH}" x2="${width-padR}" y2="${padT+plotH}" class="line-axis-line"/>
+        ${points.map(p=>`<text x="${p.x}" y="${height-16}" text-anchor="middle" class="line-axis">${String(p.hour).padStart(2,"0")}h</text>`).join("")}
+        <path d="${path}" class="hour-line-path"/>
+        ${points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="5" class="hour-line-point"><title>${String(p.hour).padStart(2,"0")}:00 · ${p.count} registro(s)</title></circle>`).join("")}
+      </svg>
+    </div>
+  </div>`;
+}
+
 async function renderStats(){
  const all=await allRecords();
  const groups=studentReportGroups(all);
@@ -1423,6 +1464,14 @@ async function renderStats(){
 
      <div id="statsCodeSummary" class="student-selection-summary"></div>
 
+     <details class="temporal-filter-box">
+       <summary>Vista temporal: alumnado</summary>
+       <div class="temporal-student-controls">
+         <label class="checkline"><input id="temporalAllCodes" type="checkbox" checked> Todos los seleccionados</label>
+         <div id="temporalCodePicker" class="temporal-code-picker"></div>
+       </div>
+     </details>
+
      <div class="stats-controls">
        <label>Desde<input id="statsFrom" type="date"></label>
        <label>Hasta<input id="statsTo" type="date"></label>
@@ -1441,9 +1490,30 @@ async function renderStats(){
  let page=0;
  const PAGE=5;
  let selected=new Set(groups.map(g=>g.code));
+ let temporalSelected=new Set(groups.map(g=>g.code));
 
  const orderedGroups=()=>sortStudentGroups(groups,document.querySelector("#statsCodeOrder").value);
  const maxPage=()=>Math.max(0,Math.ceil(orderedGroups().length/PAGE)-1);
+
+
+ const renderTemporalCodePicker=()=>{
+   const available=[...selected];
+   temporalSelected=new Set([...temporalSelected].filter(c=>available.includes(c)));
+   if(!temporalSelected.size&&available.length)temporalSelected=new Set(available);
+   const box=document.querySelector("#temporalCodePicker");
+   if(!box)return;
+   box.innerHTML=available.length?available.map(code=>`
+     <label class="temporal-code-option">
+       <input type="checkbox" value="${esc(code)}" ${temporalSelected.has(code)?"checked":""}>
+       <span>${esc(code)}</span>
+     </label>`).join(""):'<p class="hint">No hay códigos seleccionados.</p>';
+   box.querySelectorAll('input').forEach(ch=>ch.onchange=()=>{
+     ch.checked?temporalSelected.add(ch.value):temporalSelected.delete(ch.value);
+     document.querySelector("#temporalAllCodes").checked=temporalSelected.size===available.length&&available.length>0;
+     draw();
+   });
+   document.querySelector("#temporalAllCodes").checked=temporalSelected.size===available.length&&available.length>0;
+ };
 
  const renderCodePicker=()=>{
    const sorted=orderedGroups();
@@ -1459,7 +1529,7 @@ async function renderStats(){
    picker.querySelectorAll('input[type="checkbox"]').forEach(ch=>ch.addEventListener("change",()=>{
      if(ch.checked)selected.add(ch.value);else selected.delete(ch.value);
      document.querySelector("#statsAllCodes").checked=selected.size===groups.length&&groups.length>0;
-     updateCodeSummary();
+     updateCodeSummary();renderTemporalCodePicker();
    }));
 
    document.querySelector("#statsPrevCodes").disabled=page===0;
@@ -1481,7 +1551,12 @@ async function renderStats(){
  document.querySelector("#statsCodeOrder").onchange=()=>{page=0;renderCodePicker()};
  document.querySelector("#statsAllCodes").onchange=e=>{
    selected=e.target.checked?new Set(groups.map(g=>g.code)):new Set();
-   renderCodePicker();
+   temporalSelected=new Set(selected);
+   renderCodePicker();renderTemporalCodePicker();
+ };
+ document.querySelector("#temporalAllCodes").onchange=e=>{
+   temporalSelected=e.target.checked?new Set(selected):new Set();
+   renderTemporalCodePicker();draw();
  };
 
  const state=()=>({
@@ -1508,13 +1583,20 @@ async function renderStats(){
    document.querySelector("#statsSummary").innerHTML=`<div class="stats-kpis">
      <div><span>Registros</span><strong>${s.total}</strong></div>
      <div><span>Duración media</span><strong>${s.avgDuration} s</strong></div>
-     <div class="kpi-with-help"><span>Apoyo útil <button type="button" class="help-dot stat-help" data-help-title="Apoyo útil" data-help-body="${encodeURIComponent("Porcentaje de registros valorados en los que el apoyo se marcó como Sí o Parcialmente. Los registros No valorable se excluyen del cálculo. Es un indicador descriptivo y no demuestra por sí solo la eficacia del apoyo.")}">?</button></span><strong>${s.supportUseful}%</strong></div>
+     <div class="kpi-with-help"><span>Apoyo útil <button type="button" class="help-dot stat-help" data-help-title="Apoyo útil" data-help-body="${encodeURIComponent("Índice descriptivo de utilidad del apoyo: Sí puntúa 100 %, Parcialmente 50 % y No 0 %. Los registros No valorable se excluyen del cálculo. No demuestra por sí solo eficacia causal.")}">?</button></span><strong>${s.supportUseful}%</strong></div>
      <div><span>Códigos</span><strong>${Object.keys(s.codes).length}</strong></div>
    </div>
    <details class="support-breakdown"><summary>Ver desglose de apoyos</summary><div class="support-breakdown-grid">
      <span><b>Sí</b> ${s.supportYesCount}</span><span><b>Parcialmente</b> ${s.supportPartCount}</span><span><b>No</b> ${s.supportNoCount}</span><span><b>No valorable</b> ${s.supportNotValuable}</span>
    </div></details>
-   ${state().temporal?`<section class="temporal-patterns"><div class="section-title-row"><h3>Frecuencia por día y hora</h3><button type="button" class="help-dot" data-help-title="Frecuencia por día y hora" data-help-body="${encodeURIComponent("Mapa descriptivo que muestra cuántos registros se concentran en cada día y franja horaria. Sirve para detectar patrones temporales, pero no demuestra por sí solo causas ni funciones de conducta.")}">?</button></div>${renderTemporalPatterns(rs,state().codes)}</section>`:""}${charts?`<div class="chart-grid">
+   ${state().temporal?(()=>{
+     const temporalRs=rs.filter(r=>temporalSelected.has(r.codigo));
+     return `<section class="temporal-patterns">
+       <div class="section-title-row"><h3>Frecuencia por día y hora</h3><button type="button" class="help-dot" data-help-title="Frecuencia por día y hora" data-help-body="${encodeURIComponent("Vista descriptiva inspirada en registros temporales de Apoyo Conductual Positivo. Muestra cuándo se concentran los registros, pero no demuestra causalidad.")}">?</button></div>
+       ${renderTemporalPatterns(temporalRs,temporalSelected)}
+       ${renderHourlyLineChart(temporalRs,"Frecuencia total por hora")}
+     </section>`;
+   })():""}${charts?`<div class="chart-grid">
      <div class="stat"><h3>Conductas</h3>${svgBars(s.conducta)}</div>
      <div class="stat"><h3>Contextos</h3>${svgBars(s.contexto)}</div>
      <div class="stat"><h3>Riesgos</h3>${svgPie(s.riesgo)}</div>
@@ -1543,7 +1625,7 @@ async function renderStats(){
  document.querySelector("#statsXlsx").onclick=()=>gate(exportStatsXlsx);
  document.querySelector("#statsCsv").onclick=()=>gate(async rs=>exportStatsCSV(rs));
 
- renderCodePicker();
+ renderCodePicker();renderTemporalCodePicker();
  bindScreenClose(document.querySelector("#screen-stats"));
 }
 function renderHelp(){

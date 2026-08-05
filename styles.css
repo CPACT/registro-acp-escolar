@@ -1613,3 +1613,24 @@ button,.chip,.bottom-nav button{min-height:44px}
  .temporal-card{padding:.55rem}
  .temporal-legend{justify-content:flex-start;flex-wrap:wrap}
 }
+
+/* V21h — índice ponderado y vista temporal seleccionable */
+.temporal-filter-box{margin:.55rem 0;border:1px solid var(--border);border-radius:16px;background:#fbfdfc}
+.temporal-filter-box summary{padding:.55rem .7rem;cursor:pointer;font-weight:850;color:var(--brand)}
+.temporal-student-controls{padding:0 .7rem .7rem}
+.temporal-code-picker{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.4rem;margin-top:.45rem}
+.temporal-code-option{display:flex;align-items:center;gap:.4rem;padding:.45rem .5rem;border:1px solid var(--border);border-radius:12px;background:#fff;font-size:.8rem}
+.temporal-code-option:has(input:checked){background:#eef7f3;border-color:#9fc4b6}
+
+.hour-line-card{margin:.7rem 0;padding:.7rem;border:1px solid var(--border);border-radius:20px;background:#fff}
+.hour-line-scroll{overflow-x:auto}
+.hour-line-scroll svg{width:100%;min-width:680px;height:auto;display:block}
+.line-grid{stroke:#e4ece8;stroke-width:1}
+.line-axis-line{stroke:#aabdb5;stroke-width:1.2}
+.line-axis{fill:#61766e;font-size:12px}
+.hour-line-path{fill:none;stroke:#347b64;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.hour-line-point{fill:#347b64;stroke:#fff;stroke-width:2}
+@media(max-width:700px){
+ .temporal-code-picker{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .hour-line-scroll svg{min-width:620px}
+}

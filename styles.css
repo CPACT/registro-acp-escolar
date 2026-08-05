@@ -1345,3 +1345,27 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 .screen-card>.screen-close + h2,
 .screen-card>.screen-close + .section-title-row{padding-right:3rem!important}
+
+/* V20g — flecha junto al título */
+.collapsible-head{
+  justify-content:flex-start!important;
+  gap:.38rem!important;
+}
+.collapsible-head>span{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:.38rem!important;
+  flex:0 1 auto!important;
+}
+.collapsible-head>i{
+  margin-left:0!important;
+  flex:0 0 auto!important;
+}
+.collapsible-head .inline-chevron{
+  display:inline-block!important;
+  margin-left:.15rem!important;
+  font-style:normal!important;
+  color:var(--muted)!important;
+  transition:transform .18s ease!important;
+}
+.collapsible-field.open .inline-chevron{transform:rotate(180deg)!important}

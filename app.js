@@ -65,9 +65,14 @@ function refreshInstallUI(){
     if(headerBtn) headerBtn.classList.add("hidden");
   }else{
     if(card) card.classList.remove("hidden");
-    if(headerBtn) headerBtn.classList.remove("hidden");
-    if(homeBtn) homeBtn.disabled=false;
-    if(headerBtn) headerBtn.disabled=false;
+    if(headerBtn){
+      headerBtn.classList.remove("hidden");
+      headerBtn.textContent=info.isIOS?"Instalar en iPhone":"Instalar app";
+    }
+    if(homeBtn){
+      homeBtn.disabled=false;
+      homeBtn.textContent=info.isIOS?"Cómo instalar":"Instalar app";
+    }
   }
 }
 
@@ -152,11 +157,11 @@ function renderConsent(){
 }
 async function renderHome(){
  const rs=await allRecords(), old=oldCount(rs); const note=old?`<div class="warning"><strong>Revisión de datos:</strong> Existen ${old} registro(s) antiguos en este dispositivo. Revisa si sigue siendo necesario conservarlos.</div>`:"";
- document.querySelector("#screen-home").innerHTML=`<div class="card hero"><div class="hero-copy"><span class="app-kicker">ACP · Registro educativo</span><span class="version-chip">V6</span><h2>Observar. Comprender. Apoyar.</h2><p>Registra hechos. Revisa patrones. Planifica apoyos.</p><span class="privacy-pill">Datos guardados en este dispositivo</span></div>
- <div class="disclaimer"><p><strong>Registro educativo para procesos de Apoyo Conductual Positivo.</strong></p>
+ document.querySelector("#screen-home").innerHTML=`<div class="card hero"><div class="hero-copy"><span class="app-kicker">ACP · Registro educativo</span><span class="version-chip">V8</span><h2>Registrar · Revisar · Apoyar</h2><p>Registro rápido y revisión de patrones.</p><span class="privacy-pill">Datos locales</span></div>
+ <div class="disclaimer"><p><strong>Registro ACP para uso educativo.</strong></p>
  </div>${note}</div>
- <div class="install-card"><div class="install-icon">⬇</div><div><h3>Instalar esta app</h3><p>Instálala para abrirla como una app.</p></div><button id="homeInstallBtn" class="secondary">Instalar app</button></div>
- <div class="local-badge">● Datos guardados en este dispositivo</div>
+ <div class="install-card"><div class="install-icon">⬇</div><div><h3>Instalar esta app</h3><p>Acceso rápido desde tu dispositivo.</p></div><button id="homeInstallBtn" class="secondary">Instalar app</button></div>
+ <div class="local-badge">● Datos locales</div>
  <div style="height:.75rem"></div>
  <div class="grid-buttons">
  ${[
@@ -168,6 +173,7 @@ async function renderHome(){
  refreshInstallUI();
  document.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
  document.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo usarla",`<div class="mini-flow"><b>1</b><span>Observar</span><b>2</b><span>Registrar hechos</span><b>3</b><span>Revisar patrones</span><b>4</b><span>Plantear hipótesis</span><b>5</b><span>Planificar apoyos</span><b>6</b><span>Revisar en equipo</span></div><p class="hint">Describe hechos observables. Las hipótesis son provisionales y no son diagnósticos.</p>`));
+ document.querySelector("#globalHelpBtn")?.addEventListener("click",()=>quickHelp("Ayuda rápida",`<div class="help-menu"><p><b>Nuevo registro</b><br><span>Anota hechos observables.</span></p><p><b>Registros</b><br><span>Consulta, edita o duplica.</span></p><p><b>Patrones</b><br><span>Revisa tendencias, no diagnósticos.</span></p><p><b>Importar CSV</b><br><span>Trae registros de otro dispositivo.</span></p><p><b>Exportar</b><br><span>Genera PDF o CSV localmente.</span></p></div>`));
  bindHelpButtons(document.querySelector("#home"));
 }
 function formTemplate(d={}){
@@ -595,6 +601,14 @@ document.addEventListener("DOMContentLoaded",async()=>{
  document.querySelectorAll("[data-bottom-nav]").forEach(b=>b.addEventListener("click",()=>{const d=b.dataset.bottomNav;if(d==="home"){renderHome();show("home")}else navigate(d)}));
  document.querySelector("#reviewProceed").onclick=async e=>{if(!document.querySelector("#reviewConfirm").checked){e.preventDefault();return}const fn=pendingReviewAction;pendingReviewAction=null;setTimeout(async()=>{try{await fn?.()}catch(err){if(err.message!=="none"){console.error("Fallo de exportación",err?.name||"Error");alert("No se ha podido abrir el archivo para guardarlo o compartirlo. Cierra y vuelve a abrir la app; si persiste, revisaremos la integración nativa.")}}},0)};
  document.querySelector("#pinUnlockForm").onsubmit=async e=>{e.preventDefault();const p=prefs(),h=await hashPin(document.querySelector("#unlockPin").value,p.pinSalt);if(h!==p.pinHash){document.querySelector("#pinError").classList.remove("hidden");return}unlocked=true;document.querySelector("#pinDialog").close();pinNext?.();pinNext=null};
+ 
+ document.addEventListener("keydown",e=>{
+   if(e.key==="Escape"){
+     const open=[...document.querySelectorAll("dialog[open]")].pop();
+     if(open) open.close();
+   }
+ });
+
  if("serviceWorker" in navigator){
    const native=(()=>{try{return !!(window.Capacitor&&typeof window.Capacitor.getPlatform==="function"&&window.Capacitor.getPlatform()!=="web")}catch{return false}})();
    if(native){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}

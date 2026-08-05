@@ -625,3 +625,260 @@ input[type=text],input[type=password],input[type=number],input[type=datetime-loc
   .header-install{font-size:.78rem;padding:.45rem .6rem}
   .grid-buttons button{min-height:76px!important}
 }
+
+/* V7 — responsive, scroll y teclado */
+html{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+  overflow-y:auto;
+  -webkit-text-size-adjust:100%;
+}
+body{
+  width:100%;
+  max-width:100%;
+  min-height:100dvh;
+  overflow-x:hidden;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:auto;
+  padding-bottom:calc(92px + env(safe-area-inset-bottom));
+}
+main{
+  width:min(var(--max),calc(100% - 1rem))!important;
+  max-width:100%!important;
+  min-width:0!important;
+  overflow:visible!important;
+  padding-bottom:2rem;
+}
+.screen,.card,.record,.stat,.grid-buttons,.toolbar,.two,.three,.actions{
+  min-width:0!important;
+  max-width:100%!important;
+}
+img,svg,canvas,video{
+  max-width:100%;
+  height:auto;
+}
+input,select,textarea,button{
+  max-width:100%;
+}
+textarea{
+  min-width:0;
+}
+.table-wrap{
+  max-width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.app-header{
+  width:100%;
+  max-width:100%;
+  overflow:hidden;
+}
+.brand-lockup{
+  flex:1 1 auto;
+  min-width:0;
+}
+.brand-text{
+  overflow:hidden;
+}
+.brand-text h1,.brand-text p{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.bottom-nav{
+  width:100%!important;
+  max-width:720px!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translateX(-50%)!important;
+  padding-bottom:calc(.5rem + env(safe-area-inset-bottom))!important;
+}
+dialog{
+  max-height:calc(100dvh - 2rem)!important;
+  overflow:auto!important;
+}
+.dialog-card{
+  max-height:calc(100dvh - 2rem);
+  overflow:auto;
+}
+@supports(height:100svh){
+  dialog,.dialog-card{max-height:calc(100svh - 2rem)!important}
+}
+
+/* Teclado y foco */
+button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[tabindex]:not([tabindex="-1"]){
+  -webkit-tap-highlight-color:rgba(45,106,88,.15);
+}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,[tabindex]:focus-visible{
+  outline:3px solid #f0b84f!important;
+  outline-offset:3px!important;
+  box-shadow:0 0 0 2px #fff!important;
+}
+.help-dot:focus-visible,.bottom-nav button:focus-visible{
+  outline:3px solid #f0b84f!important;
+  outline-offset:2px!important;
+}
+.skip-link{
+  position:fixed!important;
+  left:1rem!important;
+  top:-100px!important;
+  z-index:9999!important;
+  background:#fff!important;
+  color:#18322b!important;
+  padding:.65rem .9rem!important;
+  border-radius:12px!important;
+  box-shadow:0 6px 18px rgba(0,0,0,.15)!important;
+}
+.skip-link:focus{
+  top:1rem!important;
+}
+
+/* Desktop: no bottom-nav obstruction, full keyboard layout */
+@media(min-width:820px){
+  body{
+    padding-bottom:2rem!important;
+  }
+  main{
+    width:min(var(--max),calc(100% - 2rem))!important;
+  }
+  .bottom-nav{
+    display:none!important;
+  }
+  .grid-buttons{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+  .toolbar{
+    grid-template-columns:repeat(3,minmax(180px,1fr))!important;
+  }
+}
+
+/* Tablet */
+@media(min-width:600px) and (max-width:819px){
+  .grid-buttons{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .two{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+
+/* iPhone y móviles estrechos */
+@media(max-width:599px){
+  html{font-size:16px}
+  body{padding-bottom:calc(90px + env(safe-area-inset-bottom))!important}
+  main{
+    width:calc(100% - .7rem)!important;
+    padding-top:.65rem!important;
+  }
+  .app-header{
+    padding-left:.7rem!important;
+    padding-right:.7rem!important;
+    gap:.5rem!important;
+  }
+  .brand-icon{
+    width:42px!important;height:42px!important;flex-basis:42px!important;
+    border-radius:14px!important;font-size:.84rem!important;
+  }
+  .brand-text h1{font-size:.9rem!important}
+  .brand-text p{display:none!important}
+  .header-install{
+    flex:0 0 auto!important;
+    min-height:38px!important;
+    padding:.4rem .55rem!important;
+    font-size:.75rem!important;
+  }
+  .grid-buttons{
+    grid-template-columns:1fr!important;
+  }
+  .grid-buttons button{
+    width:100%!important;
+    min-height:70px!important;
+  }
+  .two,.three,.toolbar{
+    grid-template-columns:1fr!important;
+  }
+  .actions{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+  }
+  .actions>button{
+    width:100%!important;
+    flex:none!important;
+  }
+  .chips{
+    gap:.4rem!important;
+  }
+  .chip span{
+    min-height:40px!important;
+    padding:.45rem .65rem!important;
+    font-size:.86rem!important;
+  }
+  .home-tools{
+    grid-template-columns:1fr!important;
+  }
+  .record-head{
+    flex-direction:column!important;
+    align-items:flex-start!important;
+  }
+}
+
+/* Very narrow devices */
+@media(max-width:360px){
+  .brand-text h1{font-size:.82rem!important}
+  .header-install{padding:.35rem .45rem!important}
+  .card{padding:.75rem!important}
+}
+
+/* V8 — interfaz realmente compacta */
+.card p.hint,.card p.warning,.card .field-help,.card .microcopy{
+  font-size:.78rem!important;
+  line-height:1.25!important;
+  margin:.22rem 0!important;
+}
+.hero-copy p{display:none!important}
+.hero{padding:1rem!important}
+.hero h2{margin:.2rem 0!important}
+.privacy-pill{font-size:.74rem!important;padding:.25rem .5rem!important}
+.quick-actions{display:flex;justify-content:flex-end;margin:.25rem 0 .5rem}
+.round-action{
+  width:auto!important;min-height:40px!important;padding:.35rem .7rem!important;
+  border-radius:999px!important;background:#e9f3ef!important;color:#285b4b!important;
+  border:1px solid #cbded5!important;box-shadow:none!important;
+  display:inline-flex!important;align-items:center!important;gap:.35rem!important
+}
+.round-action span{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#2f6b58;color:white;font-weight:900}
+.help-menu p{margin:.55rem 0!important;padding-bottom:.5rem;border-bottom:1px solid #e6eeea}
+.help-menu p:last-child{border-bottom:0}
+.help-menu span{color:var(--muted);font-size:.88rem}
+.app-header{justify-content:space-between!important}
+.brand-lockup{order:1!important}
+.header-install{order:2!important}
+.brand-icon{
+  background:#f3faf7!important;color:#2e6655!important;
+  border:1px solid rgba(255,255,255,.45)!important;
+}
+.grid-buttons button{min-height:68px!important;border-radius:26px!important}
+.grid-buttons button small{font-size:.74rem!important;line-height:1.15!important}
+.home-tools{padding:.55rem .7rem!important}
+.how-use{margin:.4rem 0!important}
+.card h3{display:flex;align-items:center;gap:.25rem;flex-wrap:wrap}
+.version-chip{opacity:.65}
+
+/* Keep navigation available on computers too. */
+@media(min-width:820px){
+  body{padding-bottom:92px!important}
+  .bottom-nav{
+    display:grid!important;
+    max-width:760px!important;
+  }
+  main{padding-bottom:2rem!important}
+}
+
+/* iPhone: installation control must remain visible in browser. */
+@media(max-width:599px){
+  .header-install{display:block;white-space:nowrap}
+  .brand-text h1{max-width:46vw}
+  .app-header{min-height:64px!important}
+}

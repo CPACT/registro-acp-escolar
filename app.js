@@ -82,25 +82,14 @@ function openInstallHelp(){
 }
 function refreshInstallUI(){
   const info=platformInfo(), b=browserInstallInfo();
-  const headerBtn=document.querySelector("#headerInstallBtn");
   const homeBtn=document.querySelector("#homeInstallBtn");
   const card=homeBtn?.closest(".install-card");
   if(info.standalone){
-    try{localStorage.setItem(PWA_FLAG,"1")}catch{}
-  }
-  let remembered=false;
-  try{remembered=localStorage.getItem(PWA_FLAG)==="1"}catch{}
-  const hideInstall=info.standalone || remembered;
-  if(hideInstall){
-    headerBtn?.classList.add("hidden");
     card?.classList.add("hidden");
     return;
   }
-  headerBtn?.classList.remove("hidden");
   card?.classList.remove("hidden");
-  const label=b.ios?"Añadir al iPhone":"Instalar app";
-  if(headerBtn) headerBtn.textContent=label;
-  if(homeBtn) homeBtn.textContent=label;
+  if(homeBtn) homeBtn.textContent=b.ios?"Añadir al iPhone":"Instalar app";
 }
 
 function platformInfo(){
@@ -310,16 +299,16 @@ function renderConsent(){
 }
 async function renderHome(){
   const rs=await allRecords(), old=oldCount(rs);
-  const note=old?`<div class="compact-note"><strong>${old} registro(s) para revisar</strong><button type="button" class="help-dot" data-help-title="Revisión de datos" data-help-body="Revisa si sigue siendo necesario conservar estos registros. La aplicación no borra automáticamente.">?</button></div>`:"";
   const el=document.querySelector("#screen-home");
+  const retention=old?`<div class="compact-note"><strong>${old} registro(s) para revisar</strong><button type="button" class="help-dot" data-help-title="Revisión de datos" data-help-body="Revisa si sigue siendo necesario conservar estos registros. La aplicación no borra automáticamente.">?</button></div>`:"";
   el.innerHTML=`
-    <div class="card hero">
+    <div class="card hero home-hero">
       <div class="hero-copy">
         <span class="app-kicker">ACP · Registro educativo</span>
         <h2>Observar · Comprender · Apoyar</h2>
         <span class="privacy-pill">Datos en este dispositivo</span>
       </div>
-      ${note}
+      ${retention}
     </div>
 
     <button id="howUseBtn" class="how-use" type="button" aria-haspopup="dialog">
@@ -328,30 +317,43 @@ async function renderHome(){
       <span class="chev" aria-hidden="true">›</span>
     </button>
 
-    <div class="install-card">
-      <div class="install-icon">＋</div>
-      <div><h3>Instalar</h3><p>Abrir como app.</p></div>
-      <button id="homeInstallBtn" class="secondary" type="button">Instalar app</button>
-    </div>
+    <section class="home-section" aria-labelledby="home-registro-title">
+      <div class="home-section-head">
+        <h2 id="home-registro-title">Registro</h2>
+      </div>
+      <div class="record-actions">
+        <button class="record-main" data-nav="form" type="button">
+          <span class="record-symbol">＋</span>
+          <strong>Nuevo</strong>
+          <small>Completo</small>
+        </button>
+        <button class="record-main" data-nav="quick" type="button">
+          <span class="record-symbol">⚡</span>
+          <strong>Rápido</strong>
+          <small>Lo esencial</small>
+        </button>
+      </div>
+    </section>
 
-    <div class="home-tools">
+    <section class="home-section" aria-label="Herramientas">
+      <div class="simple-actions">
+        <button data-nav="report" type="button"><span>▤</span><strong>Informe</strong></button>
+        <button data-nav="stats" type="button"><span>◫</span><strong>Estadísticas</strong></button>
+        <button data-nav="help" type="button"><span>?</span><strong>Ayuda</strong></button>
+        <button data-nav="privacy" type="button"><span>⌾</span><strong>Privacidad</strong></button>
+        <button data-nav="about" type="button"><span>ⓘ</span><strong>Acerca de</strong></button>
+      </div>
+    </section>
+
+    <div class="home-tools compact-tools">
       <button id="homeCsvImportBtn" class="secondary" type="button">↑ Importar CSV</button>
-      <span>Traer registros de otro dispositivo</span>
+      <span>Traer registros</span>
     </div>
 
-    <div class="grid-buttons">
-      ${[
-        ["Nuevo registro","Registro completo","form"],
-        ["Registro rápido","Lo esencial","quick"],
-        ["Registros de hoy","Ver y editar","today"],
-        ["Todos los registros","Buscar y gestionar","all"],
-        ["Informe / Exportar","PDF, CSV y correo","report"],
-        ["Patrones descriptivos","Estadísticas","stats"],
-        ["Ayuda","Conceptos y ejemplos","help"],
-        ["Privacidad","Datos y centro","privacy"],
-        ["Acerca de","Autoría y licencia","about"],
-        ["Configuración","PIN, centro y revisión","settings"]
-      ].map(([a,b,c])=>`<button data-nav="${c}" type="button"><strong>${a}</strong><span>${b}</span></button>`).join("")}
+    <div class="install-card compact-install">
+      <div class="install-icon">＋</div>
+      <div><h3>Instalar app</h3><p>Acceso rápido desde este dispositivo.</p></div>
+      <button id="homeInstallBtn" class="secondary" type="button">Instalar app</button>
     </div>`;
 
   el.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.nav)));
@@ -490,10 +492,11 @@ let selectedExportIds=[];
 async function renderReport(){
  const rs=await allRecords();document.querySelector("#screen-report").innerHTML=`<div class=card><h2>Informe / Exportar</h2><p>Selecciona uno o varios registros. Todas las operaciones se inician de forma deliberada por la persona usuaria.</p>
  <div id=exportChoices>${rs.length?rs.map(r=>`<label class=checkline><input class=export-choice type=checkbox value="${esc(r.id)}" ${selectedExportIds.includes(r.id)?"checked":""}> ${esc(r.codigo)} — ${esc(new Date(r.fechaHora).toLocaleString("es-ES"))} ${r.demo?"(DEMO)":""}</label>`).join(""):"<p>No hay registros.</p>"}</div>
- <div class=actions><button id=csvBtn>Exportar CSV</button><button id=pdfBtn>Generar PDF</button><button id=mailBtn>Preparar correo</button></div></div>`;
+ <div class=actions><button id=csvBtn>CSV</button><button id=pdfBtn>PDF</button><button id=docxBtn>DOCX</button><button id=mailBtn>Correo</button></div></div>`;
  const ids=()=>[...document.querySelectorAll(".export-choice:checked")].map(x=>x.value);
  document.querySelector("#csvBtn").onclick=()=>reviewGate(async()=>exportCSV(await recordsByIds(ids())));
  document.querySelector("#pdfBtn").onclick=()=>reviewGate(async()=>generatePDF(await recordsByIds(ids())));
+ document.querySelector("#docxBtn").onclick=()=>reviewGate(async()=>exportRecordsDOCX(await recordsByIds(ids())));
  document.querySelector("#mailBtn").onclick=()=>reviewGate(async()=>prepareMail(await recordsByIds(ids())));
 }
 async function recordsByIds(ids){if(!ids.length){toast("Selecciona al menos un registro");throw new Error("none")}const a=[];for(const id of ids){const r=await getRecord(id);if(r)a.push(r)}return a}
@@ -606,6 +609,184 @@ function flat(r){
  const out={id:r.id,demo:r.demo?"DEMO":"",fechaHora:r.fechaHora,codigo:r.codigo,grupo:r.grupo||"",profesional:r.profesional||"",contexto:val(r.contexto),contextoEspecificar:r.contextoOtro||"",factoresEntorno:val(r.factores),factoresEspecificar:r.factoresOtro||"",antecedente:val(r.antecedente),antecedenteEspecificar:r.antecedenteOtro||"",antecedenteDescripcion:r.antecedenteDesc||"",conductaObservada:val(r.conducta),conductaEspecificar:r.conductaOtro||"",conductaDescripcion:r.conductaDesc||"",duracionValor:r.duracionValor??"",duracionUnidad:r.duracionUnidad||"",frecuencia:r.frecuencia??"",intensidad:r.intensidad??"",riesgo:r.riesgo||"",consecuencia:val(r.consecuencia),consecuenciaEspecificar:r.consecuenciaOtro||"",consecuenciaDescripcion:r.consecuenciaDesc||"",hipotesisFuncionalProvisional:val(r.hipotesis),hipotesisEspecificar:r.hipotesisOtro||"",apoyosAplicados:val(r.apoyos),apoyosEspecificar:r.apoyosOtro||"",parecioAyudar:r.apoyoValoracion||"",proximaVez:val(r.proxima),proximaEspecificar:r.proximaOtro||"",proximaNota:r.proximaTexto||""};
  INCLUSION.forEach(k=>out[`inclusion_${k}`]=r.inclusion?.[k]||"");return out
 }
+
+function xmlEsc(s){return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;")}
+function crc32(bytes){
+  let c=0xffffffff;
+  if(!crc32.table){crc32.table=Array.from({length:256},(_,n)=>{let x=n;for(let k=0;k<8;k++)x=(x&1)?0xedb88320^(x>>>1):x>>>1;return x>>>0})}
+  for(const b of bytes)c=crc32.table[(c^b)&255]^(c>>>8);
+  return (c^0xffffffff)>>>0
+}
+function le16(n){return new Uint8Array([n&255,(n>>>8)&255])}
+function le32(n){return new Uint8Array([n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255])}
+function concatBytes(parts){const total=parts.reduce((s,p)=>s+p.length,0),out=new Uint8Array(total);let o=0;for(const p of parts){out.set(p,o);o+=p.length}return out}
+function dosDateTime(d=new Date()){let time=(d.getHours()<<11)|(d.getMinutes()<<5)|(Math.floor(d.getSeconds()/2));let date=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();return {time,date}}
+function zipStore(files){
+  const enc=new TextEncoder(), locals=[], centrals=[];let offset=0;const dt=dosDateTime();
+  for(const f of files){
+    const name=enc.encode(f.name),data=f.data instanceof Uint8Array?f.data:enc.encode(String(f.data)),crc=crc32(data);
+    const local=concatBytes([le32(0x04034b50),le16(20),le16(0),le16(0),le16(dt.time),le16(dt.date),le32(crc),le32(data.length),le32(data.length),le16(name.length),le16(0),name,data]);
+    locals.push(local);
+    const central=concatBytes([le32(0x02014b50),le16(20),le16(20),le16(0),le16(0),le16(dt.time),le16(dt.date),le32(crc),le32(data.length),le32(data.length),le16(name.length),le16(0),le16(0),le16(0),le16(0),le32(0),le32(offset),name]);
+    centrals.push(central);offset+=local.length;
+  }
+  const centralData=concatBytes(centrals),localData=concatBytes(locals);
+  const eocd=concatBytes([le32(0x06054b50),le16(0),le16(0),le16(files.length),le16(files.length),le32(centralData.length),le32(localData.length),le16(0)]);
+  return concatBytes([localData,centralData,eocd])
+}
+async function blobBytes(blob){return new Uint8Array(await blob.arrayBuffer())}
+function docxTextRun(text,bold=false,size=20,color="263b35"){
+  return `<w:r><w:rPr>${bold?'<w:b/>':''}<w:sz w:val="${size}"/><w:color w:val="${color}"/></w:rPr><w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r>`
+}
+function docxP(text="",opt={}){return `<w:p><w:pPr>${opt.after?`<w:spacing w:after="${opt.after}"/>`:""}${opt.align?`<w:jc w:val="${opt.align}"/>`:""}</w:pPr>${docxTextRun(text,!!opt.bold,opt.size||20,opt.color||"263b35")}</w:p>`}
+function docxTable(rows,widths=[]){
+  const cells=rows.map((row,ri)=>`<w:tr>${row.map((v,ci)=>`<w:tc><w:tcPr>${widths[ci]?`<w:tcW w:w="${widths[ci]}" w:type="dxa"/>`:""}<w:shd w:fill="${ri===0?"E8F2EE":"FFFFFF"}"/></w:tcPr>${docxP(v,{bold:ri===0,size:18})}</w:tc>`).join("")}</w:tr>`).join("");
+  return `<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:color="D7E4DE"/><w:left w:val="single" w:sz="4" w:color="D7E4DE"/><w:bottom w:val="single" w:sz="4" w:color="D7E4DE"/><w:right w:val="single" w:sz="4" w:color="D7E4DE"/><w:insideH w:val="single" w:sz="3" w:color="E4ECE8"/><w:insideV w:val="single" w:sz="3" w:color="E4ECE8"/></w:tblBorders></w:tblPr>${cells}</w:tbl>`
+}
+function docxImageDrawing(rId,name,width=520,height=260){
+  const cx=Math.round(width*9525),cy=Math.round(height*9525);
+  return `<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${rId.replace(/\D/g,"")||1}" name="${xmlEsc(name)}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="${xmlEsc(name)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`
+}
+async function canvasPng(kind,title,data){
+  const canvas=document.createElement("canvas");canvas.width=1000;canvas.height=500;const ctx=canvas.getContext("2d");
+  ctx.fillStyle="#ffffff";ctx.fillRect(0,0,1000,500);ctx.fillStyle="#1f4f41";ctx.font="bold 30px system-ui";ctx.fillText(title,35,45);
+  const entries=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,8),palette=["#2d6a58","#5a927e","#8bb6a6","#c5ded4","#496d9b","#8b78a5","#ba8b5b","#a75f5f"];
+  if(kind==="pie"){
+    const total=entries.reduce((s,x)=>s+x[1],0)||1;let ang=-Math.PI/2;
+    entries.forEach(([k,v],i)=>{const a2=ang+Math.PI*2*v/total;ctx.beginPath();ctx.moveTo(270,270);ctx.arc(270,270,170,ang,a2);ctx.closePath();ctx.fillStyle=palette[i%palette.length];ctx.fill();ang=a2});
+    ctx.font="20px system-ui";entries.forEach(([k,v],i)=>{ctx.fillStyle=palette[i%palette.length];ctx.fillRect(520,90+i*43,22,22);ctx.fillStyle="#263b35";ctx.fillText(`${k}: ${v}`,555,108+i*43)});
+  }else{
+    const max=Math.max(...entries.map(x=>x[1]),1),baseY=440,left=200,barH=36,gap=12,plotW=740;
+    ctx.font="18px system-ui";entries.forEach(([k,v],i)=>{const y=80+i*(barH+gap);ctx.fillStyle="#263b35";ctx.textAlign="right";ctx.fillText(k.slice(0,22),left-12,y+25);ctx.fillStyle=palette[i%palette.length];ctx.fillRect(left,y,plotW*v/max,barH);ctx.textAlign="left";ctx.fillStyle="#263b35";ctx.fillText(String(v),left+plotW*v/max+10,y+25)});
+  }
+  return new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error("PNG")),"image/png"))
+}
+function countField(rs,field){
+  const m={};for(const r of rs){const vals=Array.isArray(r[field])?r[field]:[r[field]];for(const v of vals.filter(v=>v!==""&&v!=null))m[String(v)]=(m[String(v)]||0)+1}return m
+}
+function statsData(rs){
+  const durations=rs.filter(r=>Number(r.duracionValor)>0).map(r=>r.duracionUnidad==="minutos"?Number(r.duracionValor)*60:Number(r.duracionValor));
+  const help=rs.filter(r=>r.apoyoValoracion),yes=help.filter(r=>r.apoyoValoracion==="Sí").length,part=help.filter(r=>r.apoyoValoracion==="Parcialmente").length;
+  return {
+    total:rs.length,codes:countField(rs,"codigo"),contexto:countField(rs,"contexto"),conducta:countField(rs,"conducta"),antecedente:countField(rs,"antecedente"),consecuencia:countField(rs,"consecuencia"),
+    intensidad:countField(rs,"intensidad"),riesgo:countField(rs,"riesgo"),hipotesis:countField(rs,"hipotesis"),apoyos:countField(rs,"apoyos"),
+    avgDuration:durations.length?Math.round(durations.reduce((a,b)=>a+b,0)/durations.length):0,
+    helpYes:help.length?Math.round(yes/help.length*100):0,helpSome:help.length?Math.round((yes+part)/help.length*100):0
+  }
+}
+function humanRows(map,limit=20){return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,limit)}
+async function buildStatsDocx(rs,opt={}){
+  const s=statsData(rs),images=[],rels=[];let imageXml="";
+  if(opt.charts){
+    const bar=await canvasPng("bar","Conductas más registradas",s.conducta),pie=await canvasPng("pie","Distribución de riesgos",s.riesgo);
+    images.push({name:"word/media/bar.png",data:await blobBytes(bar)},{name:"word/media/risk.png",data:await blobBytes(pie)});
+    rels.push(`<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/bar.png"/>`,`<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/risk.png"/>`);
+    imageXml=docxImageDrawing("rId1","Conductas")+docxImageDrawing("rId2","Riesgos");
+  }
+  const codeLabel=opt.code&&opt.code!=="all"?opt.code:"Todos los códigos";
+  let body=docxP("REGISTRO ACP ESCOLAR",{bold:true,size:32,color:"1F4F41"})+docxP("Patrones descriptivos",{bold:true,size:26})+docxP(`Ámbito: ${codeLabel} · Registros: ${rs.length}`,{size:20})+
+    docxP("Las frecuencias y correlaciones observadas no demuestran por sí mismas la función de una conducta.",{size:18,color:"7A5A22"})+
+    docxTable([["Indicador","Valor"],["Registros",String(s.total)],["Duración media",`${s.avgDuration} s`],["Pareció ayudar — Sí",`${s.helpYes}%`],["Sí o parcialmente",`${s.helpSome}%`]])+
+    docxP("Frecuencia por código pseudónimo",{bold:true,size:22,after:100})+docxTable([["Código","Registros"],...humanRows(s.codes).map(([a,b])=>[a,String(b)])])+
+    docxP("Conductas más registradas",{bold:true,size:22,after:100})+docxTable([["Conducta","Frecuencia"],...humanRows(s.conducta).map(([a,b])=>[a,String(b)])])+
+    docxP("Contextos",{bold:true,size:22,after:100})+docxTable([["Contexto","Frecuencia"],...humanRows(s.contexto).map(([a,b])=>[a,String(b)])])+
+    docxP("Riesgos",{bold:true,size:22,after:100})+docxTable([["Riesgo","Frecuencia"],...humanRows(s.riesgo).map(([a,b])=>[a,String(b)])])+imageXml;
+  if(opt.details){
+    body+=docxP("Detalle de registros",{bold:true,size:24,after:120});
+    for(const r of rs)body+=docxTable([["Código","Fecha","Contexto","Conducta","Intensidad","Riesgo"],[r.codigo,new Date(r.fechaHora).toLocaleString("es-ES"),(r.contexto||[]).join(", "),(r.conducta||[]).join(", "),String(r.intensidad??""),r.riesgo||""]]);
+  }
+  body+=docxP("Autor: Carlos Tejero · Licencia CC BY-NC-SA 4.0",{size:16,color:"5B6F67"})+docxP("Proyecto desarrollado con apoyo de ChatGPT. Interpretación y uso: persona usuaria y equipo profesional responsable.",{size:15,color:"5B6F67"});
+  const document=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="900" w:right="900" w:bottom="900" w:left="900"/></w:sectPr></w:body></w:document>`;
+  const files=[
+    {name:"[Content_Types].xml",data:`<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`},
+    {name:"_rels/.rels",data:`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`},
+    {name:"word/document.xml",data:document},
+    {name:"word/_rels/document.xml.rels",data:`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels.join("")}</Relationships>`},
+    ...images
+  ];
+  return new Blob([zipStore(files)],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"})
+}
+async function exportRecordsDOCX(rs){
+  const blob=await buildStatsDocx(rs,{charts:false,details:true,code:"all"});
+  const method=await exportUserFile(blob,`registro-acp-${new Date().toISOString().slice(0,10)}.docx`);
+  if(method!=="cancelled")toast("DOCX listo")
+}
+function xlsxCell(v,style=0){
+  if(typeof v==="number"&&Number.isFinite(v))return `<c s="${style}"><v>${v}</v></c>`;
+  return `<c t="inlineStr" s="${style}"><is><t>${xmlEsc(v??"")}</t></is></c>`
+}
+function xlsxRow(vals,header=false){return `<row>${vals.map(v=>xlsxCell(v,header?1:0)).join("")}</row>`}
+async function buildStatsXlsx(rs,opt={}){
+  const s=statsData(rs),flatRows=rs.map(flat),heads=flatRows.length?Object.keys(flatRows[0]):["codigo"];
+  const sheet1=`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${xlsxRow(heads,true)}${flatRows.map(r=>xlsxRow(heads.map(h=>r[h]))).join("")}</sheetData></worksheet>`;
+  const summary=[["REGISTRO ACP ESCOLAR — Patrones descriptivos",""],["Registros",s.total],["Duración media (s)",s.avgDuration],["Pareció ayudar — Sí (%)",s.helpYes],["Sí o parcialmente (%)",s.helpSome],["",""],["Código pseudónimo","Registros"],...humanRows(s.codes),["",""],["Conducta","Frecuencia"],...humanRows(s.conducta),["",""],["Contexto","Frecuencia"],...humanRows(s.contexto),["",""],["Riesgo","Frecuencia"],...humanRows(s.riesgo)];
+  const sheet2=`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${summary.map((r,i)=>xlsxRow(r,i===0||r[0]==="Código pseudónimo"||r[0]==="Conducta"||r[0]==="Contexto"||r[0]==="Riesgo")).join("")}</sheetData></worksheet>`;
+  let sheet3=`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${xlsxRow(["Gráficos visuales incluidos en el informe PDF/DOCX. Esta hoja mantiene los datos fuente."],true)}</sheetData></worksheet>`,extra=[],sheet3rel="";
+  if(opt.charts){
+    const bar=await canvasPng("bar","Conductas más registradas",s.conducta),pie=await canvasPng("pie","Distribución de riesgos",s.riesgo);
+    extra=[
+      {name:"xl/media/bar.png",data:await blobBytes(bar)},{name:"xl/media/risk.png",data:await blobBytes(pie)},
+      {name:"xl/drawings/drawing1.xml",data:`<?xml version="1.0" encoding="UTF-8"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>2</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:ext cx="7620000" cy="3810000"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="2" name="Conductas"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor><xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>27</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:ext cx="7620000" cy="3810000"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="3" name="Riesgos"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`},
+      {name:"xl/drawings/_rels/drawing1.xml.rels",data:`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/bar.png"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/risk.png"/></Relationships>`},
+      {name:"xl/worksheets/_rels/sheet3.xml.rels",data:`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>`}
+    ];
+    sheet3=`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData>${xlsxRow(["Gráficos"],true)}</sheetData><drawing r:id="rId1"/></worksheet>`;
+  }
+  const files=[
+    {name:"[Content_Types].xml",data:`<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${opt.charts?'<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>':""}</Types>`},
+    {name:"_rels/.rels",data:`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",data:`<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Registros" sheetId="1" r:id="rId1"/><sheet name="Resumen" sheetId="2" r:id="rId2"/><sheet name="Gráficos" sheetId="3" r:id="rId3"/></sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",data:`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",data:`<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><color rgb="FF1F4F41"/><name val="Arial"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf fontId="0" fillId="0" borderId="0"/><xf fontId="1" fillId="0" borderId="0" applyFont="1"/></cellXfs></styleSheet>`},
+    {name:"xl/worksheets/sheet1.xml",data:sheet1},{name:"xl/worksheets/sheet2.xml",data:sheet2},{name:"xl/worksheets/sheet3.xml",data:sheet3},...extra
+  ];
+  return new Blob([zipStore(files)],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})
+}
+async function exportStatsXlsx(rs,opt){
+  const blob=await buildStatsXlsx(rs,opt),method=await exportUserFile(blob,`patrones-acp-${new Date().toISOString().slice(0,10)}.xlsx`);
+  if(method!=="cancelled")toast("XLSX listo")
+}
+function statsPdfSafe(s){return pdfSafe(s)}
+function buildStatsPDF(rs,opt={}){
+  const W=595,H=842,M=40,CW=W-2*M,s=statsData(rs),brand=[45,106,88],textc=[31,47,42],muted=[91,111,103],line=[218,229,224],pal=[[45,106,88],[92,150,127],[137,184,166],[80,115,157],[156,112,168],[183,126,80],[173,88,88]];
+  let pages=[],ops=[],y=H-M,pn=0;const cmd=x=>ops.push(x),fill=c=>cmd(`${rgb(c)} rg`),stroke=c=>cmd(`${rgb(c)} RG`);
+  function t(x,yy,txt,sz=9,b=false,c=textc){fill(c);cmd(`BT /${b?'F2':'F1'} ${sz} Tf ${x} ${yy} Td (${statsPdfSafe(txt)}) Tj ET`)}
+  function rect(x,yy,w,h,c){fill(c);cmd(`${x} ${yy} ${w} ${h} re f`)}
+  function page(){if(ops.length)pages.push(ops.join("\n"));ops=[];pn++;rect(0,H-84,W,84,[31,79,65]);t(M,H-42,"REGISTRO ACP ESCOLAR",18,true,[255,255,255]);t(M,H-63,"Patrones descriptivos",10,false,[225,240,234]);t(W-M-70,H-42,`Página ${pn}`,8,false,[225,240,234]);y=H-108}
+  function need(h){if(y-h<70)page()}
+  function heading(x){need(34);rect(M,y-24,CW,28,[235,245,241]);t(M+10,y-17,x,11,true,[31,79,65]);y-=38}
+  function table(title,map){heading(title);const rows=humanRows(map,10),max=rows[0]?.[1]||1;for(const [k,v] of rows){need(24);t(M,y,k.slice(0,34),8.5,false,textc);rect(M+190,y-8,Math.max(2,(CW-250)*v/max),10,brand);t(W-M-42,y,String(v),8.5,true,textc);y-=22}}
+  page();t(M,y,`Ámbito: ${opt.code&&opt.code!=="all"?opt.code:"Todos los códigos"} · ${rs.length} registros`,10,true,textc);y-=22;t(M,y,`Duración media: ${s.avgDuration} s · Pareció ayudar: ${s.helpYes}%`,9,false,muted);y-=28;
+  if(opt.charts){table("Conductas más registradas",s.conducta);table("Contextos",s.contexto);heading("Distribución de riesgos");const entries=humanRows(s.riesgo,6),total=entries.reduce((a,b)=>a+b[1],0)||1;let ang=0,cx=M+125,cy=y-120,R=80;entries.forEach(([k,v],i)=>{const a2=ang+Math.PI*2*v/total,pts=[[cx,cy]];for(let st=0;st<=18;st++){const a=ang+(a2-ang)*st/18;pts.push([cx+Math.cos(a)*R,cy+Math.sin(a)*R])}fill(pal[i%pal.length]);cmd(`${pts[0][0]} ${pts[0][1]} m ${pts.slice(1).map(p=>`${p[0].toFixed(1)} ${p[1].toFixed(1)} l`).join(" ")} h f`);ang=a2});entries.forEach(([k,v],i)=>{rect(M+255,y-55-i*24,12,12,pal[i%pal.length]);t(M+274,y-51-i*24,`${k}: ${v}`,8.5,false,textc)});y-=190}
+  heading("Registros por código pseudónimo");for(const [k,v] of humanRows(s.codes,30)){need(20);t(M,y,k,9,true,textc);t(M+150,y,String(v),9,false,textc);y-=18}
+  if(opt.details){heading("Detalle de registros");for(const r of rs){need(42);t(M,y,`${r.codigo} · ${new Date(r.fechaHora).toLocaleDateString("es-ES")} · ${r.riesgo||"—"}`,8.5,true,textc);t(M,y-14,`Contexto: ${(r.contexto||[]).join(", ").slice(0,72)}`,7.8,false,muted);t(M,y-27,`Conducta: ${(r.conducta||[]).join(", ").slice(0,72)}`,7.8,false,muted);y-=42}}
+  t(M,38,"Autor: Carlos Tejero · CC BY-NC-SA 4.0 · Datos locales. No diagnóstico.",7.2,false,muted);
+  if(ops.length)pages.push(ops.join("\n"));
+  let objs=[];const add=o=>{objs.push(o);return objs.length},f1=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'),f2=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');let pids=[];for(const ps of pages){const cid=add(`<< /Length ${ps.length} >>\nstream\n${ps}\nendstream`),pid=add("PENDING");pids.push({pid,cid})}const pagesId=add("PAGES");for(const p of pids)objs[p.pid-1]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${p.cid} 0 R >>`;objs[pagesId-1]=`<< /Type /Pages /Kids [${pids.map(p=>`${p.pid} 0 R`).join(" ")}] /Count ${pids.length} >>`;const catalog=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);let pdf="%PDF-1.4\n",offs=[0];for(let i=0;i<objs.length;i++){offs.push(pdf.length);pdf+=`${i+1} 0 obj\n${objs[i]}\nendobj\n`}const x=pdf.length;pdf+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`;for(let i=1;i<offs.length;i++)pdf+=`${String(offs[i]).padStart(10,"0")} 00000 n \n`;pdf+=`trailer\n<< /Size ${objs.length+1} /Root ${catalog} 0 R >>\nstartxref\n${x}\n%%EOF`;return new Blob([new TextEncoder().encode(pdf)],{type:"application/pdf"})
+}
+async function exportStatsPDF(rs,opt){
+  const method=await exportUserFile(buildStatsPDF(rs,opt),`patrones-acp-${new Date().toISOString().slice(0,10)}.pdf`);if(method!=="cancelled")toast("PDF listo")
+}
+async function exportStatsDOCX(rs,opt){
+  const blob=await buildStatsDocx(rs,opt),method=await exportUserFile(blob,`patrones-acp-${new Date().toISOString().slice(0,10)}.docx`);if(method!=="cancelled")toast("DOCX listo")
+}
+async function exportStatsCSV(rs){
+  await exportCSV(rs)
+}
+function statsFilterRecords(rs,opt){
+  const from=opt.from?new Date(`${opt.from}T00:00:00`):null,to=opt.to?new Date(`${opt.to}T23:59:59`):null;
+  return rs.filter(r=>(!opt.code||opt.code==="all"||r.codigo===opt.code)&&(!from||new Date(r.fechaHora)>=from)&&(!to||new Date(r.fechaHora)<=to))
+}
+function svgBars(map){
+  const arr=humanRows(map,8),max=arr[0]?.[1]||1;if(!arr.length)return '<p class="hint">Sin datos.</p>';
+  return `<div class="chart-bars">${arr.map(([k,v])=>`<div class="chart-row"><span>${esc(k)}</span><div><i style="width:${v/max*100}%"></i></div><b>${v}</b></div>`).join("")}</div>`
+}
+function svgPie(map){
+  const arr=humanRows(map,6),total=arr.reduce((s,x)=>s+x[1],0)||1,colors=["#2d6a58","#5c967f","#8ab7a5","#5576a0","#9177a0","#b47d55"];let angle=0,stops=[];
+  arr.forEach(([k,v],i)=>{const start=angle,end=angle+v/total*100;stops.push(`${colors[i]} ${start}% ${end}%`);angle=end});
+  return `<div class="pie-wrap"><div class="pie-chart" style="background:conic-gradient(${stops.join(",")})"></div><div class="pie-legend">${arr.map(([k,v],i)=>`<span><i style="background:${colors[i]}"></i>${esc(k)} · ${v}</span>`).join("")}</div></div>`
+}
+
 async function exportCSV(rs){
  const rows=rs.map(flat),heads=Object.keys(rows[0]);const q=v=>`"${String(v??"").replaceAll('"','""')}"`;const csv="\uFEFF"+[heads.map(q).join(";"),...rows.map(r=>heads.map(h=>q(r[h])).join(";"))].join("\r\n");const method=await exportUserFile(new Blob([csv],{type:"text/csv;charset=utf-8"}),`registro-acp-${new Date().toISOString().slice(0,10)}.csv`);if(method!=="cancelled")toast(method==="download"?"CSV descargado":"CSV listo")
 }
@@ -700,12 +881,29 @@ async function exportUserFile(blob,filename){
 function downloadBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 
 async function renderStats(){
- const rs=await allRecords();const counts=(field)=>{const m={};for(const r of rs){const vals=Array.isArray(r[field])?r[field]:[r[field]];for(const v of vals.filter(Boolean))m[v]=(m[v]||0)+1}return m};const blocks=(title,m)=>{const arr=Object.entries(m).sort((a,b)=>b[1]-a[1]),max=arr[0]?.[1]||1;return `<div class=stat><h3>${title}</h3>${arr.length?arr.slice(0,10).map(([k,v])=>`<p>${esc(k)} — ${v}</p><div class=bar><i style="width:${v/max*100}%"></i></div>`).join(""):"<p>Sin datos.</p>"}</div>`};
- const dur=rs.filter(r=>r.duracionValor>0).map(r=>r.duracionUnidad==="minutos"?r.duracionValor*60:r.duracionValor),avg=dur.length?Math.round(dur.reduce((a,b)=>a+b,0)/dur.length):0;
- const help=rs.filter(r=>r.apoyoValoracion),yes=help.filter(r=>r.apoyoValoracion==="Sí").length,part=help.filter(r=>r.apoyoValoracion==="Parcialmente").length;
- document.querySelector("#screen-stats").innerHTML=`<div class=card><h2>Patrones descriptivos</h2><p>Calculadas exclusivamente a partir de los registros almacenados en este dispositivo.</p><div class=warning>Las correlaciones o frecuencias observadas no demuestran la función de una conducta.</div></div>
- <div class=stat-grid>${blocks("Frecuencia por contexto",counts("contexto"))}${blocks("Conductas más registradas",counts("conducta"))}${blocks("Antecedentes más frecuentes",counts("antecedente"))}${blocks("Consecuencias más frecuentes",counts("consecuencia"))}${blocks("Distribución de intensidad",counts("intensidad"))}${blocks("Distribución de riesgos",counts("riesgo"))}${blocks("Distribución de hipótesis",counts("hipotesis"))}${blocks("Apoyos más utilizados",counts("apoyos"))}
- <div class=stat><h3>Duración media</h3><p><strong>${avg} segundos</strong></p></div><div class=stat><h3>“Pareció ayudar”</h3><p>Sí: ${help.length?Math.round(yes/help.length*100):0}% · Sí o parcialmente: ${help.length?Math.round((yes+part)/help.length*100):0}%</p><p class=hint>No demuestra causalidad.</p></div></div>`;
+ const all=await allRecords(),codes=[...new Set(all.map(r=>r.codigo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+ document.querySelector("#screen-stats").innerHTML=`<div class="card"><h2>Patrones descriptivos</h2>
+ <p class="hint">Resumen local. No demuestra la función de una conducta ni realiza diagnósticos.</p>
+ <div class="stats-controls">
+   <label>Código pseudónimo<select id="statsCode"><option value="all">Todos</option>${codes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
+   <label>Desde<input id="statsFrom" type="date"></label>
+   <label>Hasta<input id="statsTo" type="date"></label>
+   <label class="checkline"><input id="statsCharts" type="checkbox" checked> Incluir gráficos</label>
+   <label class="checkline"><input id="statsDetails" type="checkbox"> Incluir detalle de registros</label>
+   <button id="statsApply" type="button">Aplicar</button>
+ </div>
+ <div id="statsSummary"></div>
+ <div class="actions stats-export"><button id="statsPdf">PDF</button><button id="statsDocx">DOCX</button><button id="statsXlsx">XLSX</button><button id="statsCsv">CSV</button></div>
+ </div>`;
+ const state=()=>({code:document.querySelector("#statsCode").value,from:document.querySelector("#statsFrom").value,to:document.querySelector("#statsTo").value,charts:document.querySelector("#statsCharts").checked,details:document.querySelector("#statsDetails").checked});
+ const current=()=>statsFilterRecords(all,state());
+ const draw=()=>{const rs=current(),s=statsData(rs),charts=state().charts;document.querySelector("#statsSummary").innerHTML=`<div class="stats-kpis"><div><span>Registros</span><strong>${s.total}</strong></div><div><span>Duración media</span><strong>${s.avgDuration} s</strong></div><div><span>Ayudó</span><strong>${s.helpYes}%</strong></div><div><span>Códigos</span><strong>${Object.keys(s.codes).length}</strong></div></div>${charts?`<div class="chart-grid"><div class="stat"><h3>Conductas</h3>${svgBars(s.conducta)}</div><div class="stat"><h3>Contextos</h3>${svgBars(s.contexto)}</div><div class="stat"><h3>Riesgos</h3>${svgPie(s.riesgo)}</div><div class="stat"><h3>Registros por código</h3>${svgBars(s.codes)}</div></div>`:""}<details class="stats-table"><summary>Ver resumen numérico</summary><div class="table-wrap"><table><thead><tr><th>Código</th><th>Registros</th></tr></thead><tbody>${humanRows(s.codes,100).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join("")}</tbody></table></div></details>${state().details?`<details open><summary>Detalle de ${rs.length} registros</summary><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Código</th><th>Contexto</th><th>Conducta</th><th>Intensidad</th><th>Riesgo</th></tr></thead><tbody>${rs.map(r=>`<tr><td>${esc(new Date(r.fechaHora).toLocaleDateString("es-ES"))}</td><td>${esc(r.codigo)}</td><td>${esc((r.contexto||[]).join(", "))}</td><td>${esc((r.conducta||[]).join(", "))}</td><td>${esc(r.intensidad)}</td><td>${esc(r.riesgo)}</td></tr>`).join("")}</tbody></table></div></details>`:""}`};
+ document.querySelector("#statsApply").onclick=draw;draw();
+ const gate=(fn)=>reviewGate(async()=>{const rs=current();if(!rs.length){toast("No hay registros con esos filtros");throw new Error("none")}await fn(rs,state())});
+ document.querySelector("#statsPdf").onclick=()=>gate(exportStatsPDF);
+ document.querySelector("#statsDocx").onclick=()=>gate(exportStatsDOCX);
+ document.querySelector("#statsXlsx").onclick=()=>gate(exportStatsXlsx);
+ document.querySelector("#statsCsv").onclick=()=>gate(async rs=>exportStatsCSV(rs));
 }
 function renderHelp(){
  const qs=[["¿Qué es ABC?","Un modo estructurado de registrar Antecedente, Conducta observada y Consecuencia para revisar patrones sin convertir una observación aislada en una explicación causal."],["¿Qué es un antecedente?","Lo que ocurrió inmediatamente antes del episodio, descrito mediante hechos observables."],["¿Qué es una consecuencia?","Lo que ocurrió inmediatamente después. No significa necesariamente premio, castigo ni causa."],["¿Qué es una hipótesis funcional?","Una explicación provisional sobre qué necesidad o función podría ser compatible con un patrón de registros. Requiere varios datos y revisión profesional/en equipo."],["¿Qué significa análisis funcional?","Proceso sistemático para comprender relaciones entre contexto, conducta y consecuencias. Esta aplicación ayuda a registrar datos, pero no sustituye una evaluación funcional profesional cuando sea necesaria."],["¿Observación o interpretación?","Observable: “Al indicarle que guardase el dispositivo, golpeó la mesa tres veces y salió del aula.” Interpretativo: “Se enfadó, quiso desafiar al profesor y perdió el control.” El primero describe hechos; el segundo atribuye estados internos o intenciones."],["¿Qué significa Apoyo Conductual Positivo?","Un enfoque centrado en la persona que busca comprender necesidades, prevenir dificultades y mejorar bienestar, participación, calidad de vida y apoyos, evitando reducir a la persona a una conducta."],["¿Por qué observar el entorno?","Porque accesibilidad, ruido, demandas, comunicación, predictibilidad, transiciones o tiempos de procesamiento pueden influir en la participación y regulación."],["¿Por qué una hipótesis necesita varios registros?","Un episodio aislado puede tener muchas explicaciones. Los patrones repetidos aportan información más prudente y útil."],["¿Qué es pseudonimización?","Sustituir identificadores directos por un código. Reduce riesgos, pero puede seguir siendo dato personal si existe información adicional que permite reidentificar."],["¿Qué datos no debo introducir?","Evita nombres completos, DNI, direcciones, diagnósticos, información clínica y cualquier dato identificativo que no sea necesario para la finalidad educativa del registro."]];
@@ -717,7 +915,7 @@ function renderPrivacy(){
  <h3>Arquitectura de privacidad y datos</h3>
  <p>Los registros ACP se almacenan localmente en el dispositivo. El autor no recibe ni puede consultar los registros almacenados localmente. No existe sincronización automática de registros. Una vez exportados o incorporados a un correo, su protección dependerá también del sistema o servicio utilizado.</p>
  <div class=table-wrap><table><thead><tr><th>DATO</th><th>DÓNDE SE GUARDA</th><th>¿SE ENVÍA AUTOMÁTICAMENTE?</th></tr></thead><tbody>
- ${[["Registros ACP","Dispositivo local","NO"],["Código pseudónimo","Dispositivo local","NO"],["Preferencias","Dispositivo local","NO"],["Destinatario recordado","Dispositivo local","NO"],["PIN","Dispositivo local","NO"],["CSV","Generado localmente","NO"],["PDF","Generado localmente","NO"],["Correo","Cliente de correo elegido por la persona usuaria","NO desde Registro ACP Escolar"]].map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+ ${[["Registros ACP","Dispositivo local","NO"],["Código pseudónimo","Dispositivo local","NO"],["Preferencias","Dispositivo local","NO"],["Destinatario recordado","Dispositivo local","NO"],["PIN","Dispositivo local","NO"],["CSV","Generado localmente","NO"],["PDF","Generado localmente","NO"],["DOCX","Generado localmente","NO"],["XLSX","Generado localmente","NO"],["Correo","Cliente de correo elegido por la persona usuaria","NO desde Registro ACP Escolar"]].map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
  <h3>Uso institucional</h3><p>Cuando corresponda, consulta al Delegado o Delegada de Protección de Datos del centro o administración competente. La aplicación no está homologada ni autorizada automáticamente por la AEPD, la Comunidad de Madrid ni ningún centro educativo.</p><p>La utilización de códigos pseudónimos reduce riesgos, pero los datos pseudonimizados pueden seguir siendo datos personales si pueden vincularse nuevamente a una persona mediante información adicional.</p></div>`
 }
 function renderAbout(){
@@ -751,7 +949,7 @@ async function renderSettings(){
    const p=prefs();document.querySelector("#centerDisplayName").value=p.centerDisplayName||"";document.querySelector("#codePrefixSetting").value=p.codePrefix||"";document.querySelector("#codeFormatSetting").value=p.codeFormat||"01A";document.querySelector("#centerLocalNote").value=p.centerLocalNote||"";document.querySelector("#centerCustomizeDialog").showModal();
  });
  document.querySelector("#centerDocsBtn")?.addEventListener("click",async()=>{await renderCenterDocs();document.querySelector("#centerDocsDialog").showModal()});
- document.querySelector("#dpdInfoBtn")?.addEventListener("click",()=>quickHelp("Información para centro / DPD",`<div class="help-menu"><p><b>Almacenamiento</b><br><span>Registros y documentos institucionales se guardan localmente en el dispositivo.</span></p><p><b>Servidor</b><br><span>No existe base de datos central de registros ACP.</span></p><p><b>Identificación</b><br><span>Se utilizan códigos pseudónimos. La pseudonimización reduce riesgos, pero no convierte automáticamente los datos en anónimos.</span></p><p><b>Exportación</b><br><span>PDF/CSV se generan localmente y solo salen del dispositivo por acción del usuario.</span></p><p><b>Decisiones</b><br><span>No diagnostica, no perfila y no toma decisiones automatizadas.</span></p><p><b>Uso institucional</b><br><span>Debe ajustarse a las políticas, medidas de seguridad y herramientas autorizadas por el centro o Administración.</span></p></div>`));
+ document.querySelector("#dpdInfoBtn")?.addEventListener("click",()=>quickHelp("Información para centro / DPD",`<div class="help-menu"><p><b>Almacenamiento</b><br><span>Registros y documentos institucionales se guardan localmente en el dispositivo.</span></p><p><b>Servidor</b><br><span>No existe base de datos central de registros ACP.</span></p><p><b>Identificación</b><br><span>Se utilizan códigos pseudónimos. La pseudonimización reduce riesgos, pero no convierte automáticamente los datos en anónimos.</span></p><p><b>Exportación</b><br><span>PDF, DOCX, XLSX y CSV se generan localmente y solo salen del dispositivo por acción del usuario.</span></p><p><b>Decisiones</b><br><span>No diagnostica, no perfila y no toma decisiones automatizadas.</span></p><p><b>Uso institucional</b><br><span>Debe ajustarse a las políticas, medidas de seguridad y herramientas autorizadas por el centro o Administración.</span></p></div>`));
 
  document.querySelector("#deleteAll").onclick=async()=>{if(!confirm("¿Quieres eliminar todos los registros almacenados en este dispositivo?"))return;if(!confirm("Esta acción no puede deshacerse. Confirmar borrado definitivo."))return;await clearRecords();toast("Todos los registros han sido eliminados")}
 }
@@ -790,12 +988,12 @@ async function navigate(dest){
 }
 document.addEventListener("DOMContentLoaded",async()=>{
  db=await openDB();
+ document.querySelector("#headerSettingsBtn")?.addEventListener("click",()=>navigate("settings"));
  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;});
  window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;localStorage.setItem(PWA_FLAG,"1");toast("App instalada");refreshInstallUI();});
  window.addEventListener("pageshow",()=>{setTimeout(()=>ensureHomeVisible().catch(()=>{}),50)});
  document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(()=>ensureHomeVisible().catch(()=>{}),50)});
- document.querySelector("#headerInstallBtn")?.addEventListener("click",openInstallHelp);
- document.querySelector("#floatingHelpBtn")?.addEventListener("click",()=>quickHelp("Ayuda rápida",`<div class="mini-flow"><b>1</b><span>Nuevo registro</span><b>2</b><span>Anota hechos observables</span><b>3</b><span>Revisa patrones</span><b>4</b><span>Planifica apoyos</span></div><p class="hint">Pulsa los símbolos ? para aclaraciones concretas.</p>`));
+  document.querySelector("#floatingHelpBtn")?.addEventListener("click",()=>quickHelp("Ayuda rápida",`<div class="mini-flow"><b>1</b><span>Nuevo registro</span><b>2</b><span>Anota hechos observables</span><b>3</b><span>Revisa patrones</span><b>4</b><span>Planifica apoyos</span></div><p class="hint">Pulsa los símbolos ? para aclaraciones concretas.</p>`));
  document.querySelector("#conceptHelpBtn")?.addEventListener("click",()=>quickHelp("Conceptos clave",`<div class="help-menu"><p><b>Antecedente</b><br><span>Qué ocurrió justo antes.</span></p><p><b>Conducta observada</b><br><span>Qué se vio u oyó.</span></p><p><b>Consecuencia</b><br><span>Qué ocurrió después.</span></p><p><b>Hipótesis funcional</b><br><span>Explicación provisional, no diagnóstico.</span></p></div>`));
  document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshInstallUI();});
  

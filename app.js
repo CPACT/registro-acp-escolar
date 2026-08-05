@@ -54,6 +54,38 @@ async function deleteRecord(id){return new Promise((res,rej)=>{const tx=db.trans
 async function clearRecords(){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).clear();tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 
 
+
+function refreshInstallUI(){
+  const info=platformInfo();
+  const homeBtn=document.querySelector("#homeInstallBtn");
+  const headerBtn=document.querySelector("#headerInstallBtn");
+  const card=homeBtn?.closest(".install-card");
+  if(info.standalone){
+    if(card){
+      card.classList.add("installed");
+      const title=card.querySelector("h3");
+      const text=card.querySelector("p");
+      const icon=card.querySelector(".install-icon");
+      if(title) title.textContent="App instalada";
+      if(text) text.textContent="Se está ejecutando desde la pantalla de inicio.";
+      if(icon) icon.textContent="✓";
+    }
+    if(homeBtn){
+      homeBtn.textContent="Instalada";
+      homeBtn.disabled=true;
+      homeBtn.setAttribute("aria-disabled","true");
+    }
+    if(headerBtn){
+      headerBtn.textContent="Instalada";
+      headerBtn.disabled=true;
+      headerBtn.setAttribute("aria-disabled","true");
+    }
+  }else{
+    if(homeBtn) homeBtn.disabled=false;
+    if(headerBtn) headerBtn.disabled=false;
+  }
+}
+
 function platformInfo(){
   const ua=navigator.userAgent||"";
   const isIOS=/iPad|iPhone|iPod/.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
@@ -64,7 +96,7 @@ function platformInfo(){
 function installHelpText(){
   const {isIOS,isAndroid,standalone}=platformInfo();
   if(standalone) return `<p><strong>Ya está instalada.</strong></p>`;
-  if(isIOS) return `<p><strong>En iPhone:</strong></p><ol class="install-steps"><li>Abre en Safari.</li><li>Pulsa <strong>Compartir</strong>.</li><li>Elige <strong>Añadir a pantalla de inicio</strong>.</li></ol>`;
+  if(isIOS) return `<p><strong>Instalar en iPhone</strong></p><ol class="install-steps"><li>Abre esta página en <strong>Safari</strong>.</li><li>Pulsa <strong>Compartir</strong> ⬆️.</li><li>Elige <strong>Añadir a pantalla de inicio</strong>.</li></ol><p class="hint">Después aparecerá como una app con su propio icono.</p>`;
   if(isAndroid) return deferredInstallPrompt ? `<p>Pulsa <strong>Instalar ahora</strong>.</p>` : `<p>En Chrome: menú ⋮ → <strong>Instalar aplicación</strong>.</p>`;
   return deferredInstallPrompt ? `<p>Pulsa <strong>Instalar ahora</strong>.</p>` : `<p>Usa la opción <strong>Instalar</strong> de tu navegador.</p>`;
 }
@@ -131,6 +163,8 @@ async function renderHome(){
  <div class="card"><h2>Cómo usarla en 60 segundos</h2><div class="flow">${["Observar","↓","Registrar hechos","↓","Revisar patrones","↓","Formular hipótesis","↓","Planificar apoyos","↓","Revisar en equipo"].map(x=>x==="↓"?"<b>↓</b>":`<span>${x}</span>`).join("")}</div></div>`;
  document.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>navigate(b.dataset.nav));
  document.querySelector("#homeInstallBtn")?.addEventListener("click",()=>{if(deferredInstallPrompt)triggerInstall();else openInstallDialog();});
+ refreshInstallUI();
+ document.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
 }
 function formTemplate(d={}){
  const inc=d.inclusion||{};
@@ -320,6 +354,47 @@ function openImportDialog(){
   if(!d)return;f.value="";p.innerHTML="";p.classList.add("hidden");c.checked=false;b.disabled=true;d.showModal();
 }
 
+
+function acpParseCSV(text){
+  text=String(text||"").replace(/^\uFEFF/,"");
+  const delimiter=(text.split("\n")[0].match(/;/g)||[]).length >= (text.split("\n")[0].match(/,/g)||[]).length ? ";" : ",";
+  const rows=[];let row=[],cell="",q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'&&text[i+1]==='"'){cell+='"';i++}else if(c==='"')q=false;else cell+=c}
+    else if(c==='"')q=true;else if(c===delimiter){row.push(cell);cell=""}
+    else if(c==="\n"){row.push(cell);rows.push(row);row=[];cell=""}
+    else if(c!=="\r")cell+=c}
+  if(cell||row.length){row.push(cell);rows.push(row)}
+  return rows.filter(r=>r.some(v=>String(v).trim()));
+}
+function acpList(v){return String(v||"").split("|").map(x=>x.trim()).filter(Boolean)}
+function acpImportedRecord(o){
+  return {id:uid(),demo:String(o.demo||"").toUpperCase()==="DEMO",fechaHora:o.fechaHora||nowLocal(),codigo:String(o.codigo||"").trim(),
+    grupo:o.grupo||"",profesional:o.profesional||"",contexto:acpList(o.contexto),contextoOtro:o.contextoEspecificar||o.contextoOtro||"",
+    factores:acpList(o.factores),factoresOtro:o.factoresEspecificar||o.factoresOtro||"",antecedente:acpList(o.antecedente),
+    antecedenteOtro:o.antecedenteEspecificar||o.antecedenteOtro||"",antecedenteDesc:o.antecedenteDescripcion||o.antecedenteDesc||"",
+    conducta:acpList(o.conducta),conductaOtro:o.conductaEspecificar||o.conductaOtro||"",conductaDesc:o.conductaDescripcion||o.conductaDesc||"",
+    duracionValor:Number(o.duracionValor||0),duracionUnidad:o.duracionUnidad||"segundos",frecuencia:Number(o.frecuencia||0),
+    intensidad:Number(o.intensidad||0),riesgo:o.riesgo||"sin riesgo",consecuencia:acpList(o.consecuencia),
+    consecuenciaOtro:o.consecuenciaEspecificar||o.consecuenciaOtro||"",consecuenciaDesc:o.consecuenciaDescripcion||o.consecuenciaDesc||"",
+    hipotesis:acpList(o.hipotesis),hipotesisOtro:o.hipotesisEspecificar||o.hipotesisOtro||"",apoyos:acpList(o.apoyos),
+    apoyosOtro:o.apoyosEspecificar||o.apoyosOtro||"",apoyoValoracion:o.parecioAyudar||o.apoyoValoracion||"",
+    proxima:acpList(o.proximaVez||o.proxima),proximaOtro:o.proximaEspecificar||o.proximaOtro||"",proximaTexto:o.proximaTexto||"",
+    inclusion:{},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),quick:false};
+}
+async function acpReadImport(file){
+  const rows=acpParseCSV(await file.text()); if(rows.length<2)throw new Error("CSV");
+  const h=rows[0].map(x=>String(x).trim());
+  return rows.slice(1).map(r=>Object.fromEntries(h.map((x,i)=>[x,r[i]??""]))).map(acpImportedRecord).filter(r=>r.codigo);
+}
+function openImportDialog(){
+  const d=document.querySelector("#importDialog");if(!d)return;
+  document.querySelector("#csvImportFile").value="";
+  document.querySelector("#csvImportPreview").innerHTML="";
+  document.querySelector("#csvImportConfirm").checked=false;
+  document.querySelector("#csvImportBtn").disabled=true; d.showModal();
+}
+
 function flat(r){
  const val=x=>(x||[]).join(" | ");
  const out={id:r.id,demo:r.demo?"DEMO":"",fechaHora:r.fechaHora,codigo:r.codigo,grupo:r.grupo||"",profesional:r.profesional||"",contexto:val(r.contexto),contextoEspecificar:r.contextoOtro||"",factoresEntorno:val(r.factores),factoresEspecificar:r.factoresOtro||"",antecedente:val(r.antecedente),antecedenteEspecificar:r.antecedenteOtro||"",antecedenteDescripcion:r.antecedenteDesc||"",conductaObservada:val(r.conducta),conductaEspecificar:r.conductaOtro||"",conductaDescripcion:r.conductaDesc||"",duracionValor:r.duracionValor??"",duracionUnidad:r.duracionUnidad||"",frecuencia:r.frecuencia??"",intensidad:r.intensidad??"",riesgo:r.riesgo||"",consecuencia:val(r.consecuencia),consecuenciaEspecificar:r.consecuenciaOtro||"",consecuenciaDescripcion:r.consecuenciaDesc||"",hipotesisFuncionalProvisional:val(r.hipotesis),hipotesisEspecificar:r.hipotesisOtro||"",apoyosAplicados:val(r.apoyos),apoyosEspecificar:r.apoyosOtro||"",parecioAyudar:r.apoyoValoracion||"",proximaVez:val(r.proxima),proximaEspecificar:r.proximaOtro||"",proximaNota:r.proximaTexto||""};
@@ -494,9 +569,17 @@ async function navigate(dest){
 document.addEventListener("DOMContentLoaded",async()=>{
  db=await openDB();
  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;});
- window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;toast("Registro ACP Escolar instalada");});
+ window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;toast("App instalada");refreshInstallUI();});
  document.querySelector("#headerInstallBtn")?.addEventListener("click",()=>{if(deferredInstallPrompt)triggerInstall();else openInstallDialog();});
+ document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshInstallUI();});
  document.querySelector("#installNowBtn")?.addEventListener("click",e=>{e.preventDefault();triggerInstall();});
+
+ let acpPendingImport=[];
+ const acpFile=document.querySelector("#csvImportFile"),acpPrev=document.querySelector("#csvImportPreview"),acpCheck=document.querySelector("#csvImportConfirm"),acpBtn=document.querySelector("#csvImportBtn");
+ acpFile?.addEventListener("change",async()=>{acpPendingImport=[];acpBtn.disabled=true;const f=acpFile.files?.[0];if(!f)return;try{acpPendingImport=await acpReadImport(f);acpPrev.innerHTML=`<div class="import-summary"><strong>${acpPendingImport.length}</strong> registros listos para importar.</div>`;acpPrev.classList.remove("hidden");acpBtn.disabled=!(acpCheck.checked&&acpPendingImport.length)}catch{acpPrev.innerHTML='<div class="risk">CSV no compatible.</div>';acpPrev.classList.remove("hidden")}});
+ acpCheck?.addEventListener("change",()=>acpBtn.disabled=!(acpCheck.checked&&acpPendingImport.length));
+ acpBtn?.addEventListener("click",async()=>{if(!acpCheck.checked||!acpPendingImport.length)return;for(const r of acpPendingImport)await putRecord(r);const n=acpPendingImport.length;acpPendingImport=[];document.querySelector("#importDialog")?.close();toast(`${n} registros importados`);renderHome();show("home")});
+
 
  const csvFile=document.querySelector("#csvImportFile"),csvPreview=document.querySelector("#csvImportPreview"),csvConfirm=document.querySelector("#csvImportConfirm"),csvBtn=document.querySelector("#csvImportBtn");
  let pendingCsvRecords=[];

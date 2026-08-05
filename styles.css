@@ -513,3 +513,25 @@ input[type=text],input[type=password],input[type=number],input[type=datetime-loc
 .install-steps{margin:.4rem 0 .2rem;padding-left:1.25rem}
 .install-steps li{margin:.25rem 0}
 @media(max-width:560px){.grid-buttons{gap:.6rem}.grid-buttons button{min-height:84px}.card{padding:.9rem}.section-title-row{align-items:flex-start}}
+
+.install-card.installed{
+  background:linear-gradient(135deg,#eaf6f0,#f8fcfa);
+  border-color:#bcdacb;
+}
+.install-card.installed .install-icon{
+  background:#2f725c;
+}
+.install-card button:disabled,
+#headerInstallBtn:disabled{
+  opacity:.72;
+  cursor:default;
+  transform:none;
+}
+
+.home-tools{margin:.75rem 0 1rem;display:flex;align-items:center;gap:.7rem;padding:.75rem .85rem;background:#fff;border:1px solid #d9e6e0;border-radius:20px}
+.home-tools button{border-radius:16px;font-weight:800}
+.home-tools span{font-size:.84rem;color:var(--muted)}
+.file-drop{display:block;border:2px dashed #bdd5ca;border-radius:22px;padding:1rem;text-align:center;background:#f7fbf9}
+.file-drop input{display:block;margin:.7rem auto 0;max-width:100%}
+.import-summary{padding:.8rem;border-radius:16px;background:#edf6f2;margin:.7rem 0}
+@media(max-width:560px){.home-tools{display:grid}.home-tools button{width:100%}}

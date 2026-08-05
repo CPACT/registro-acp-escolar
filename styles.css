@@ -1282,3 +1282,66 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .collapsible-head{min-height:54px!important;padding:.65rem .75rem!important}
   .collapsible-field .collapsible-body{padding:.1rem .7rem .75rem!important}
 }
+
+/* V20c — accordions functional and consistent */
+.collapsible-head{cursor:pointer!important}
+.collapsible-head:hover{background:#f6faf8!important}
+.collapsible-field.open{border-color:#b9d5ca!important}
+.collapsible-field.open>.collapsible-head{background:#edf6f2!important}
+.collapsible-field.open>.collapsible-head i{transform:rotate(180deg)!important}
+.section-help-line{
+  display:flex;align-items:center;justify-content:space-between;gap:.55rem;
+  color:var(--muted);font-size:.78rem;margin:.15rem 0 .55rem
+}
+.quick-critical{
+  margin-top:.7rem!important;padding:.7rem!important;
+  background:#f8fbfa;border:1px solid var(--border);border-radius:20px
+}
+
+/* V20d — selector de códigos pseudónimos */
+.code-manager-card{max-width:620px}
+.code-choice-list{display:grid;gap:.65rem;margin:.8rem 0}
+.code-choice{
+  display:grid;grid-template-columns:auto 1fr;gap:.7rem;align-items:start;
+  padding:.85rem;border:1px solid var(--border);border-radius:20px;background:#fbfdfc;cursor:pointer
+}
+.code-choice:has(input:checked){border-color:#8eb9a9;background:#eef7f3;box-shadow:0 0 0 3px rgba(77,139,116,.08)}
+.code-choice>input{margin-top:.25rem;transform:scale(1.15)}
+.code-choice strong{display:block;font-size:.95rem}
+.code-choice small{display:block;color:var(--muted);margin:.1rem 0 .45rem;line-height:1.25}
+.generated-code{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:92px;padding:.42rem .65rem;border-radius:14px;background:#fff;border:1px solid #cedfd7;
+  font-weight:950;letter-spacing:.06em;color:var(--brand)
+}
+.code-choice select,.code-choice input[type=text]{margin-top:.15rem}
+.code-choice-actions{margin-top:.8rem}
+.code-choice-actions button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:560px){.code-choice{padding:.75rem}.code-manager-card{width:min(94vw,620px)}}
+
+/* V20e — exportación desde Registros */
+.records-export-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:.7rem;
+  margin:.7rem 0;padding:.65rem .75rem;border:1px solid var(--border);
+  border-radius:20px;background:#f8fbfa
+}
+.records-export-bar>span{font-size:.82rem;color:var(--muted)}
+.records-export-actions{display:flex;gap:.4rem;flex-wrap:wrap}
+.records-export-actions button{
+  min-height:38px!important;padding:.4rem .65rem!important;border-radius:14px!important;
+  font-size:.8rem!important
+}
+@media(max-width:620px){
+  .records-export-bar{align-items:stretch;flex-direction:column}
+  .records-export-actions{display:grid;grid-template-columns:1fr 1fr}
+  .records-export-actions button{width:100%!important}
+}
+
+/* V20f — cierre universal de pantallas secundarias */
+.screen-card{position:relative!important}
+.screen-card>.screen-close{
+  position:absolute!important;top:.65rem!important;right:.7rem!important;
+  z-index:30!important
+}
+.screen-card>.screen-close + h2,
+.screen-card>.screen-close + .section-title-row{padding-right:3rem!important}

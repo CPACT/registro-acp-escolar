@@ -192,10 +192,18 @@ async function usedCodes(){
 }
 async function openCodeManager(targetInput){
   const d=document.querySelector("#codeManagerDialog");
-  const sel=document.querySelector("#existingCodeSelect"), prev=document.querySelector("#newCodePreview");
+  const sel=document.querySelector("#existingCodeSelect");
+  const prev=document.querySelector("#newCodePreview");
+  const custom=document.querySelector("#customCodeInput");
+  const warning=document.querySelector("#customCodeWarning");
+  const save=document.querySelector("#saveCodeChoiceBtn");
   const codes=await usedCodes();
-  sel.innerHTML='<option value="">Seleccionar…</option>'+codes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
-  prev.value=nextMaskedCode(codes);
+  sel.innerHTML='<option value="">Seleccionar código…</option>'+codes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  prev.textContent=nextMaskedCode(codes);
+  custom.value="";
+  warning.textContent="";warning.classList.add("hidden");
+  save.disabled=true;
+  d.querySelectorAll('input[name="codeChoice"]').forEach(r=>r.checked=false);
   d.dataset.targetName=targetInput?.name||"codigo";
   d.showModal();
 }
@@ -286,8 +294,11 @@ function bindCollapsibleFieldsets(root){
   root.querySelectorAll(".collapsible-field").forEach(box=>{
     const head=box.querySelector(".collapsible-head");
     const body=box.querySelector(".collapsible-body");
-    if(!head||!body)return;
-    head.addEventListener("click",()=>{
+    if(!head||!body||head.dataset.collapseBound==="1")return;
+    head.dataset.collapseBound="1";
+    head.addEventListener("click",e=>{
+      // A contextual help control inside a section must not toggle the accordion.
+      if(e.target.closest(".help-dot"))return;
       const open=!box.classList.contains("open");
       box.classList.toggle("open",open);
       head.setAttribute("aria-expanded",String(open));
@@ -308,9 +319,25 @@ function bindOtherReveal(root){
   });
 }
 
+
+function ensureScreenClose(id){
+  if(id==="home")return;
+  const screen=document.querySelector(`#screen-${id}`);
+  if(!screen)return;
+  const host=screen.querySelector(".card")||screen;
+  if(host.querySelector(":scope > .screen-close"))return;
+  host.classList.add("screen-card");
+  const btn=document.createElement("button");
+  btn.type="button";btn.className="screen-close";btn.setAttribute("aria-label","Cerrar");btn.title="Cerrar";
+  btn.textContent="×";
+  btn.addEventListener("click",async()=>{await renderHome();show("home")});
+  host.prepend(btn);
+}
+
 function show(id){
  document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
  const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el);bindScreenClose(el);bindCollapsibleFieldsets(el);bindOtherReveal(el)},0);setTimeout(()=>bindHelpButtons(el),0);
+  setTimeout(()=>ensureScreenClose(id),0);
 }
 function requirePin(next){
  const p=prefs(); if(!p.pinEnabled||unlocked){next();return}
@@ -385,7 +412,7 @@ async function renderHome(){
 function formTemplate(d={}){
  const inc=d.inclusion||{};
  return `<form id="recordForm">
- <div class="card screen-card">${screenCloseButton()}<div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2>${currentEditId?"":'<button type="button" class="secondary small" id="importFromForm">Importar CSV</button>'}</div><p class="hint">Usa un código pseudónimo.</p>
+ <div class="card screen-card">${screenCloseButton()}<div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2>${currentEditId?"":''}</div><p class="hint">Usa un código pseudónimo.</p>
  <div class="two"><label class="required">Fecha y hora<input name="fechaHora" type="datetime-local" required value="${esc(d.fechaHora||nowLocal())}"></label>
  <label class="required">Código pseudónimo
   <div class="code-row"><input name="codigo" required readonly aria-readonly="true" value="${esc(d.codigo||"")}"><button type="button" class="secondary code-pick" id="chooseCodeBtn">Elegir / crear</button></div>
@@ -472,7 +499,7 @@ function recordFromForm(form,base={}){
 }
 async function renderForm(data=null){
  currentEditId=data?.id||null;document.querySelector("#screen-form").innerHTML=formTemplate(data||{});bindSpec(document.querySelector("#screen-form"));
- const f=document.querySelector("#recordForm");document.querySelector("#chooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);document.querySelector("#importFromForm")?.addEventListener("click",openImportDialog);bindHelpButtons(document.querySelector("#recordForm"));document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
+ const f=document.querySelector("#recordForm");document.querySelector("#chooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);bindHelpButtons(document.querySelector("#recordForm"));document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
  document.querySelector("#riskSelect").onchange=e=>document.querySelector("#highRisk").classList.toggle("hidden",e.target.value!=="alto");
  document.querySelectorAll("[data-help=ante]").forEach(b=>b.onclick=()=>alert("Registra lo que ocurrió inmediatamente antes utilizando hechos observables y evitando interpretar intenciones."));
  let start=0,tick=null;const disp=document.querySelector("#timerDisplay");
@@ -499,8 +526,17 @@ function quickTemplate(d={}){
   </button>
   <div class="collapsible-body">${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}<label class="required">Descripción objetiva breve<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
  </div>
-</section><h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
- <div class="two"><label>Intensidad<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${n===3?"selected":""}>${n}</option>`).join("")}</select></label><label>Riesgo<select name="riesgo">${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div>
+</section>
+<section class="collapsible-field" data-section="qconsecuencia">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Consecuencia</h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">
+    <div class="section-help-line"><span>Qué ocurrió justo después</span>${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</div>
+    ${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
+  </div>
+</section>
+ <div class="two quick-critical"><label>Intensidad<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${n===3?"selected":""}>${n}</option>`).join("")}</select></label><label>Riesgo<select name="riesgo">${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div>
  <div class="actions"><button>Guardar registro rápido</button><button type="button" id="quickComplete" class="secondary">Completar detalles</button><button type="button" id="quickCancel" class="secondary">Cancelar</button></div></div></form>`;
 }
 function quickToRecord(form){
@@ -531,6 +567,22 @@ async function renderList(mode="all"){
  bindRecordActions();
  document.querySelector("#deleteSelected").onclick=async()=>{const ids=[...document.querySelectorAll(".select-record:checked")].map(x=>x.value);if(!ids.length)return toast("Selecciona al menos un registro");if(confirm(`¿Eliminar ${ids.length} registro(s) seleccionado(s)?`)){for(const id of ids)await deleteRecord(id);toast("Registros eliminados");renderList(mode)}};
  document.querySelector("#deleteDemo").onclick=async()=>{const all=await allRecords(),d=all.filter(r=>r.demo);if(!d.length)return toast("No hay datos DEMO");if(confirm(`¿Eliminar ${d.length} registro(s) DEMO?`)){for(const r of d)await deleteRecord(r.id);toast("Datos DEMO eliminados");renderList(mode)}};
+ const visibleRecords=()=>[...document.querySelectorAll("#listWrap [data-id]")].map(el=>el.dataset.id).filter(Boolean);
+ const currentVisibleRecords=async()=>{
+   const ids=visibleRecords();
+   if(!ids.length)return [];
+   return await recordsByIds(ids);
+ };
+ const exportVisible=async fn=>{
+   const rs=await currentVisibleRecords();
+   if(!rs.length){toast("No hay registros visibles");return}
+   await reviewGate(async()=>fn(rs));
+ };
+ document.querySelector("#recordsPdfBtn")?.addEventListener("click",()=>exportVisible(rs=>exportStatsPDF(rs,{charts:false,details:true,code:"all"})));
+ document.querySelector("#recordsDocxBtn")?.addEventListener("click",()=>exportVisible(rs=>exportStatsDOCX(rs,{charts:false,details:true,code:"all"})));
+ document.querySelector("#recordsXlsxBtn")?.addEventListener("click",()=>exportVisible(rs=>exportStatsXlsx(rs,{charts:false,details:true,code:"all"})));
+ document.querySelector("#recordsCsvBtn")?.addEventListener("click",()=>exportVisible(rs=>exportStatsCSV(rs)));
+
 }
 function ensureRecordDetailDialog(){
  let d=document.querySelector("#recordDetailDialog");
@@ -1083,28 +1135,59 @@ document.addEventListener("DOMContentLoaded",async()=>{
   document.querySelector("#floatingHelpBtn")?.addEventListener("click",()=>quickHelp("Ayuda rápida",`<div class="mini-flow"><b>1</b><span>Nuevo registro</span><b>2</b><span>Anota hechos observables</span><b>3</b><span>Revisa patrones</span><b>4</b><span>Planifica apoyos</span></div><p class="hint">Pulsa los símbolos ? para aclaraciones concretas.</p>`));
  document.querySelector("#conceptHelpBtn")?.addEventListener("click",()=>quickHelp("Conceptos clave",`<div class="help-menu"><p><b>Antecedente</b><br><span>Qué ocurrió justo antes.</span></p><p><b>Conducta observada</b><br><span>Qué se vio u oyó.</span></p><p><b>Consecuencia</b><br><span>Qué ocurrió después.</span></p><p><b>Hipótesis funcional</b><br><span>Explicación provisional, no diagnóstico.</span></p></div>`));
  document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshInstallUI();});
+
  
- document.querySelector("#useExistingCodeBtn")?.addEventListener("click",()=>{
-   const v=document.querySelector("#existingCodeSelect").value;if(!v)return toast("Selecciona un código");
-   const target=currentCodeTarget();if(target)target.value=v;document.querySelector("#codeManagerDialog").close();
+ const codeDialog=document.querySelector("#codeManagerDialog");
+ const codeSave=document.querySelector("#saveCodeChoiceBtn");
+ const codeExisting=document.querySelector("#existingCodeSelect");
+ const codeCustom=document.querySelector("#customCodeInput");
+ const codeWarning=document.querySelector("#customCodeWarning");
+
+ async function refreshCodeChoiceState(){
+   const choice=codeDialog?.querySelector('input[name="codeChoice"]:checked')?.value;
+   let valid=false;
+   if(choice==="new") valid=true;
+   if(choice==="existing") valid=!!codeExisting?.value;
+   if(choice==="custom"){
+     const result=validateCustomCode(codeCustom?.value||"",await usedCodes());
+     valid=result.problems.length===0 && !!result.code;
+     if(codeWarning){
+       codeWarning.textContent=result.problems.length?`⚠ ${result.problems.join(" · ")}`:"";
+       codeWarning.classList.toggle("hidden",!result.problems.length);
+     }
+   }else if(codeWarning){
+     codeWarning.textContent="";codeWarning.classList.add("hidden");
+   }
+   if(codeSave) codeSave.disabled=!valid;
+ }
+
+ codeDialog?.querySelectorAll('input[name="codeChoice"]').forEach(r=>r.addEventListener("change",refreshCodeChoiceState));
+ codeExisting?.addEventListener("change",()=>{
+   const r=codeDialog?.querySelector('input[name="codeChoice"][value="existing"]');if(r)r.checked=true;
+   refreshCodeChoiceState();
  });
- document.querySelector("#createNewCodeBtn")?.addEventListener("click",async()=>{
-   const codes=await usedCodes(),code=nextMaskedCode(codes);const target=currentCodeTarget();if(target)target.value=code;document.querySelector("#codeManagerDialog").close();toast(`Código ${code} creado`);
+ codeCustom?.addEventListener("input",()=>{
+   const r=codeDialog?.querySelector('input[name="codeChoice"][value="custom"]');if(r)r.checked=true;
+   refreshCodeChoiceState();
  });
 
- document.querySelector("#customCodeInput")?.addEventListener("input",async e=>{
-   const warning=document.querySelector("#customCodeWarning");
-   const {problems}=validateCustomCode(e.target.value,await usedCodes());
-   warning.textContent=problems.length?`⚠ ${problems.join(" · ")}`:"";
-   warning.classList.toggle("hidden",!problems.length);
- });
- document.querySelector("#useCustomCodeBtn")?.addEventListener("click",async()=>{
-   const input=document.querySelector("#customCodeInput"),warning=document.querySelector("#customCodeWarning");
-   const result=validateCustomCode(input.value,await usedCodes());
-   if(result.problems.length){warning.textContent=`⚠ ${result.problems.join(" · ")}`;warning.classList.remove("hidden");return}
-   if(!confirm("Confirma que este código no permite identificar directamente al alumnado y que su diseño ha sido autorizado por el centro cuando corresponda."))return;
-   const target=currentCodeTarget();if(target)target.value=result.code;
-   input.value="";warning.classList.add("hidden");document.querySelector("#codeManagerDialog").close();toast("Código aplicado");
+ codeSave?.addEventListener("click",async()=>{
+   const choice=codeDialog?.querySelector('input[name="codeChoice"]:checked')?.value;
+   const target=currentCodeTarget();
+   if(!choice||!target)return;
+   let code="";
+   if(choice==="new") code=document.querySelector("#newCodePreview")?.textContent?.trim()||"";
+   if(choice==="existing") code=codeExisting?.value||"";
+   if(choice==="custom"){
+     const result=validateCustomCode(codeCustom?.value||"",await usedCodes());
+     if(result.problems.length||!result.code){await refreshCodeChoiceState();return}
+     if(!confirm("Confirma que este código no permite identificar directamente al alumnado y que su diseño ha sido autorizado por el centro cuando corresponda."))return;
+     code=result.code;
+   }
+   if(!code)return;
+   target.value=code;
+   codeDialog.close();
+   toast(`Código ${code} aplicado`);
  });
 
  document.querySelector("#saveCenterCustomizeBtn")?.addEventListener("click",()=>{

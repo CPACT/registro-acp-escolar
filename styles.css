@@ -1643,3 +1643,6 @@ button,.chip,.bottom-nav button{min-height:44px}
 
 /* V21j — configuración previa de informe por alumnado */
 .export-choice-hint{margin:.55rem 0 .25rem!important;font-size:.76rem!important}
+
+/* V21k — ayuda contextual Intensidad/Riesgo */
+.inline-help{display:inline-grid!important;vertical-align:middle;margin-left:.25rem}

@@ -2,6 +2,7 @@
 "use strict";
 const DB_NAME="registro_acp_escolar_db", DB_VERSION=2, STORE="registros", DOC_STORE="documentosCentro";
 const PREF="registro_acp_escolar_prefs";
+let currentCodeInputTarget=null;
 let db=null, currentEditId=null, pendingReviewAction=null, listMode="all", unlocked=false;
 let lastSavedRecordId=null;
 let deferredInstallPrompt=null;
@@ -246,7 +247,27 @@ async function usedCodes(){
   const rs=await allRecords();
   return [...new Set(rs.map(r=>r.codigo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
 }
+
+function syncVisibleCodeInputs(value){
+  value=String(value||"").trim();
+  if(!value)return;
+  const candidates=[
+    "#quickCodigo","#codigoQuick","#qCodigo","#quickCode",
+    "#fullCodigo","#codigo","#recordCodigo"
+  ];
+  candidates.forEach(sel=>{
+    const el=document.querySelector(sel);
+    if(el && el.offsetParent!==null){el.value=value;el.dataset.selectedCode=value;el.dispatchEvent(new Event("change",{bubbles:true}));}
+  });
+  if(currentCodeInputTarget && document.contains(currentCodeInputTarget)){
+    currentCodeInputTarget.value=value;
+    currentCodeInputTarget.dataset.selectedCode=value;
+    currentCodeInputTarget.dispatchEvent(new Event("change",{bubbles:true}));
+  }
+}
+
 async function openCodeManager(targetInput){
+  currentCodeInputTarget=targetInput||null;
   const d=document.querySelector("#codeManagerDialog");
   const sel=document.querySelector("#existingCodeSelect");
   const prev=document.querySelector("#newCodePreview");
@@ -575,8 +596,8 @@ function formTemplate(d={}){
 
   <div class="card">
     <div class="two">
-      <label>Intensidad (1–5)<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${String(d.intensidad||3)===String(n)?"selected":""}>${n}</option>`).join("")}</select></label>
-      <label>Riesgo<select name="riesgo" id="riskSelect">${["sin riesgo","leve","moderado","alto"].map(x=>`<option ${d.riesgo===x?"selected":""}>${x}</option>`).join("")}</select></label>
+      <label>Intensidad <button type="button" class="help-dot inline-help" data-help-title="Intensidad" data-help-body="${encodeURIComponent("Nivel descriptivo de la magnitud observada. 1 = leve o de baja interferencia; 2 = moderada; 3 = alta o con interferencia importante. Valora lo observado, no a la persona.")}">?</button> (1–5)<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${String(d.intensidad||3)===String(n)?"selected":""}>${n}</option>`).join("")}</select></label>
+      <label>Riesgo <button type="button" class="help-dot inline-help" data-help-title="Riesgo" data-help-body="${encodeURIComponent("Riesgo se refiere a la posibilidad inmediata de daño para la propia persona, otras personas o el entorno. Bajo = sin riesgo apreciable; Medio = requiere atención o prevención; Alto = existe riesgo claro y requiere actuación prioritaria según el protocolo del centro.")}">?</button><select name="riesgo" id="riskSelect">${["sin riesgo","leve","moderado","alto"].map(x=>`<option ${d.riesgo===x?"selected":""}>${x}</option>`).join("")}</select></label>
     </div>
     <div id="highRisk" class="risk ${d.riesgo==="alto"?"":"hidden"}">Prioriza la seguridad, la dignidad y los protocolos establecidos por el centro.</div>
   </div>
@@ -639,7 +660,7 @@ function quickTemplate(d={}){
     ${accordionSection("qconducta","Conducta",`${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}<label>Descripción objetiva breve<textarea name="conductaDesc">${esc(d.conductaDesc||"")}</textarea></label>`,"Conducta observada","Qué se vio u oyó.")}
     ${accordionSection("qconsecuencia","Consecuencia",chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||""),"Consecuencia","Qué ocurrió inmediatamente después.")}
   </div>
-  <div class="card"><div class="two quick-critical"><label>Intensidad<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${n===3?"selected":""}>${n}</option>`).join("")}</select></label><label>Riesgo<select name="riesgo">${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div></div>
+  <div class="card"><div class="two quick-critical"><label>Intensidad <button type="button" class="help-dot inline-help" data-help-title="Intensidad" data-help-body="${encodeURIComponent("Nivel descriptivo de la magnitud observada. 1 = leve o de baja interferencia; 2 = moderada; 3 = alta o con interferencia importante. Valora lo observado, no a la persona.")}">?</button><select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${n===3?"selected":""}>${n}</option>`).join("")}</select></label><label>Riesgo <button type="button" class="help-dot inline-help" data-help-title="Riesgo" data-help-body="${encodeURIComponent("Riesgo se refiere a la posibilidad inmediata de daño para la propia persona, otras personas o el entorno. Bajo = sin riesgo apreciable; Medio = requiere atención o prevención; Alto = existe riesgo claro y requiere actuación prioritaria según el protocolo del centro.")}">?</button><select name="riesgo">${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div></div>
   <div class="card actions"><button type="submit">Guardar registro rápido</button><button type="button" id="quickComplete" class="secondary">Completar detalles</button><button type="button" id="quickCancel" class="secondary">Cancelar</button></div>
  </form>`;
 }
@@ -679,7 +700,7 @@ async function renderList(mode="all"){
    <details class="filter-panel"><summary>Filtrar registros</summary><div class="toolbar">
      <label>Código<select id="fCode"><option value="">Todos</option>${codes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></label>
      <label>Contexto<select id="fContext"><option value="">Todos</option>${OPT.contexto.map(x=>`<option>${x}</option>`).join("")}</select></label>
-     <label>Riesgo<select id="fRisk"><option value="">Todos</option>${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label>
+     <label>Riesgo <button type="button" class="help-dot inline-help" data-help-title="Riesgo" data-help-body="${encodeURIComponent("Riesgo se refiere a la posibilidad inmediata de daño para la propia persona, otras personas o el entorno. Bajo = sin riesgo apreciable; Medio = requiere atención o prevención; Alto = existe riesgo claro y requiere actuación prioritaria según el protocolo del centro.")}">?</button><select id="fRisk"><option value="">Todos</option>${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label>
      <label>Conducta<select id="fBehavior"><option value="">Todas</option>${OPT.conducta.map(x=>`<option>${x}</option>`).join("")}</select></label>
      <label>Desde<input id="fFrom" type="date"></label><label>Hasta<input id="fTo" type="date"></label>
      <div class="actions compact-actions"><button id="applyFilters" class="secondary" type="button">Aplicar</button><button id="clearFilters" class="ghost" type="button">Limpiar</button></div>
@@ -1994,7 +2015,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
      code=result.code;
    }
    if(!code)return;
-   target.value=code;
+   target.value=code; syncVisibleCodeInputs(code);
    codeDialog.close();
    toast(`Código ${code} aplicado`);
  });
@@ -2006,7 +2027,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
  });
  document.querySelector("#centerDocFile")?.addEventListener("change",async e=>{
    const file=e.target.files?.[0];if(!file)return;
-   try{await putCenterDoc(file);toast("Documento guardado localmente");e.target.value="";renderCenterDocs()}catch(err){alert(err.message==="TOO_LARGE"?"Máximo 5 MB por documento.":"No se pudo guardar el documento.")}
+   try{await putCenterDoc(file);toast("Documento guardado localmente");e.target.value=""; syncVisibleCodeInputs("");renderCenterDocs()}catch(err){alert(err.message==="TOO_LARGE"?"Máximo 5 MB por documento.":"No se pudo guardar el documento.")}
  });
 
  document.querySelector("#installNowBtn")?.addEventListener("click",e=>{e.preventDefault();triggerInstall();});

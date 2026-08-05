@@ -280,9 +280,37 @@ function bindScreenClose(root){
   root?.querySelector(".screen-close")?.addEventListener("click",()=>{renderHome();show("home")});
 }
 
+
+function bindCollapsibleFieldsets(root){
+  if(!root)return;
+  root.querySelectorAll(".collapsible-field").forEach(box=>{
+    const head=box.querySelector(".collapsible-head");
+    const body=box.querySelector(".collapsible-body");
+    if(!head||!body)return;
+    head.addEventListener("click",()=>{
+      const open=!box.classList.contains("open");
+      box.classList.toggle("open",open);
+      head.setAttribute("aria-expanded",String(open));
+    });
+  });
+}
+function bindOtherReveal(root){
+  if(!root)return;
+  root.querySelectorAll("[data-other-target]").forEach(container=>{
+    const targetSel=container.dataset.otherTarget;
+    const target=root.querySelector(targetSel);
+    if(!target)return;
+    const refresh=()=>{
+      const checked=[...container.querySelectorAll('input[type="checkbox"],input[type="radio"]')].some(i=>i.checked && /otro|otra/i.test(i.value||i.dataset.label||""));
+      target.classList.toggle("hidden",!checked);
+    };
+    container.addEventListener("change",refresh);refresh();
+  });
+}
+
 function show(id){
  document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
- const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el);bindScreenClose(el)},0);setTimeout(()=>bindHelpButtons(el),0);
+ const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el);bindScreenClose(el);bindCollapsibleFieldsets(el);bindOtherReveal(el)},0);setTimeout(()=>bindHelpButtons(el),0);
 }
 function requirePin(next){
  const p=prefs(); if(!p.pinEnabled||unlocked){next();return}
@@ -344,7 +372,7 @@ async function renderHome(){
       <button id="homeInstallBtn" class="secondary" type="button">Instalar app</button>
     </div>`;
 
-  el.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.nav)));
+  el.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>b.dataset.nav==="reports"?openReportsChooser():navigate(b.dataset.nav)));
   el.querySelector("#homeReportsBtn")?.addEventListener("click",openReportsChooser);
   el.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
   el.querySelector("#homeInstallBtn")?.addEventListener("click",openInstallHelp);
@@ -364,30 +392,70 @@ function formTemplate(d={}){
   <span class="hint">No uses nombre, iniciales ni datos personales.</span>
 </label>
  <label>Curso / grupo<input name="grupo" value="${esc(d.grupo||"")}"></label><label>Profesional que registra (iniciales o alias)<input name="profesional" value="${esc(d.profesional||"")}"></label></div></div>
- <div class="card"><h3>Contexto escolar <button type="button" class="help-dot" data-help-title="Contexto escolar" data-help-body="Selecciona dónde ocurrió la situación. Puedes marcar varias opciones.">?</button></h3>${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
- <div class="card"><h3>Factores del entorno ${helpButton("Factores del entorno","Marca condiciones que pudieron influir: ruido, espera, cambios, comunicación, descanso, etc. No se usan para inferir diagnósticos.")}</h3>${chips("factores",OPT.factores,d.factores||[],"factoresOtro",d.factoresOtro||"")}
+ <div class="card"><section class="collapsible-field" data-section="contexto">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Contexto escolar <button type="button" class="help-dot" data-help-title="Contexto escolar" data-help-body="Selecciona dónde ocurrió la situación. Puedes marcar varias opciones.">?</button></h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
+ <div class="card"></div>
+</section><section class="collapsible-field" data-section="factores">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Factores del entorno ${helpButton("Factores del entorno","Marca condiciones que pudieron influir: ruido, espera, cambios, comunicación, descanso, etc. No se usan para inferir diagnósticos.")}</h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">${chips("factores",OPT.factores,d.factores||[],"factoresOtro",d.factoresOtro||"")}
  <p class="hint">Observa barreras del entorno y necesidades de apoyo.</p><p class="hint"></p></div>
- <div class="card"><h3>Antecedente inmediato <button type="button" class="help-dot" data-help-title="Antecedente" data-help-body="Qué ocurrió justo antes. Describe hechos observables.">?</button></h3>${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
+ <div class="card"></div>
+</section><section class="collapsible-field" data-section="antecedente">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Antecedente inmediato <button type="button" class="help-dot" data-help-title="Antecedente" data-help-body="Qué ocurrió justo antes. Describe hechos observables.">?</button></h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
  <label>Descripción objetiva del antecedente <button type="button" class="small secondary" data-help="ante">?</button><textarea name="antecedenteDesc">${esc(d.antecedenteDesc||"")}</textarea></label>
  <p class="hint">Describe hechos, no intenciones.</p></div>
- <div class="card"><h3>Conducta observada ${helpButton("Conducta observada","Describe lo que se vio u oyó. Ejemplo: “Golpeó la mesa tres veces”. Evita etiquetas como “se portó mal”.")}</h3>${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}
+ <div class="card"></div>
+</section><section class="collapsible-field" data-section="conducta">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Conducta observada ${helpButton("Conducta observada","Describe lo que se vio u oyó. Ejemplo: “Golpeó la mesa tres veces”. Evita etiquetas como “se portó mal”.")}</h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}
  <label class="required">Descripción objetiva de la conducta<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
  <p class="hint">Describe hechos observables.</p>
  <div class="three"><label>Duración<input type="number" min="0" step="1" name="duracionValor" value="${esc(d.duracionValor||"")}"></label><label>Unidad<select name="duracionUnidad"><option>segundos</option><option ${d.duracionUnidad==="minutos"?"selected":""}>minutos</option></select></label><label>Frecuencia<input type="number" min="0" step="1" name="frecuencia" value="${esc(d.frecuencia||1)}"></label></div>
- <div class="actions"><button type="button" class="secondary small" id="timerStart">Iniciar cronómetro</button><button type="button" class="secondary small" id="timerStop" disabled>Detener</button><span id="timerDisplay" aria-live="polite"></span></div></div>
+ </div>
+</section><div class="actions"><button type="button" class="secondary small" id="timerStart">Iniciar cronómetro</button><button type="button" class="secondary small" id="timerStop" disabled>Detener</button><span id="timerDisplay" aria-live="polite"></span></div></div>
  <div class="card"><div class="two"><label>Intensidad (1–5)<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${String(d.intensidad||3)===String(n)?"selected":""}>${n}</option>`).join("")}</select></label>
  <label>Riesgo<select name="riesgo" id="riskSelect">${["sin riesgo","leve","moderado","alto"].map(x=>`<option ${d.riesgo===x?"selected":""}>${x}</option>`).join("")}</select></label></div>
  <p class="hint">1 — Muy baja: apenas interfiere. 2 — Baja. 3 — Moderada. 4 — Alta. 5 — Muy alta. Describe el episodio, no a la persona.</p>
  <div id="highRisk" class="risk ${d.riesgo==="alto"?"":"hidden"}">Prioriza la seguridad, la dignidad y los protocolos establecidos por el centro. Esta aplicación no es una guía de intervención de emergencia.</div></div>
- <div class="card"><h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
+ <div class="card"><section class="collapsible-field" data-section="consecuencia">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
  <label>Descripción adicional<textarea name="consecuenciaDesc">${esc(d.consecuenciaDesc||"")}</textarea></label><p class="hint">Qué ocurrió después.</p></div>
- <div class="card"><h3>Hipótesis provisional <button type="button" class="help-dot" data-help-title="Hipótesis, no diagnóstico" data-help-body="Es una explicación provisional. Necesita varios registros y revisión en equipo.">?</button></h3><div class="warning"><strong>Hipótesis funcional provisional:</strong> requiere varios registros, análisis de patrones y revisión en equipo.</div>${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
+ <div class="card"></div>
+</section><h3>Hipótesis provisional <button type="button" class="help-dot" data-help-title="Hipótesis, no diagnóstico" data-help-body="Es una explicación provisional. Necesita varios registros y revisión en equipo.">?</button></h3><div class="warning"><strong>Hipótesis funcional provisional:</strong> requiere varios registros, análisis de patrones y revisión en equipo.</div>${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
  <p class="hint">Hipótesis provisional.</p></div>
- <div class="card"><h3>Apoyos aplicados ${helpButton("Apoyos","Registra los apoyos utilizados y si pareció que ayudaron. Esto no demuestra causalidad.")}</h3>${chips("apoyos",OPT.apoyos,d.apoyos||[],"apoyosOtro",d.apoyosOtro||"")}
+ <div class="card"><section class="collapsible-field" data-section="apoyos">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Apoyos aplicados ${helpButton("Apoyos","Registra los apoyos utilizados y si pareció que ayudaron. Esto no demuestra causalidad.")}</h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">${chips("apoyos",OPT.apoyos,d.apoyos||[],"apoyosOtro",d.apoyosOtro||"")}
  <label>¿Pareció ayudar?<select name="apoyoValoracion"><option></option>${["Sí","Parcialmente","No","No valorable"].map(x=>`<option ${d.apoyoValoracion===x?"selected":""}>${x}</option>`).join("")}</select></label><p class="hint">No demuestra causalidad.</p></div>
- <div class="card"><h3>Próxima vez <button type="button" class="help-dot" data-help-title="Próxima vez" data-help-body="Anota ajustes o apoyos que conviene probar en una situación similar.">?</button></h3>${chips("proxima",OPT.proxima,d.proxima||[],"proximaOtro",d.proximaOtro||"")}<label>Nota breve<textarea name="proximaTexto">${esc(d.proximaTexto||"")}</textarea></label></div>
- <div class="card"><h3>Inclusión y contexto <button type="button" class="help-dot" data-help-title="Inclusión y contexto" data-help-body="Revisa accesibilidad, participación, predictibilidad, comunicación y dignidad. No evalúa a la persona.">?</button></h3><p>Revisa el entorno y los apoyos.</p><div class="two">${inclusionFields(inc)}</div></div>
- <div class="card actions"><button type="submit">${currentEditId?"Guardar cambios":"Guardar registro"}</button><button type="button" class="secondary" id="cancelForm">Cancelar</button></div></form>`;
+ <div class="card"></div>
+</section><section class="collapsible-field" data-section="proxima">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Próxima vez <button type="button" class="help-dot" data-help-title="Próxima vez" data-help-body="Anota ajustes o apoyos que conviene probar en una situación similar.">?</button></h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">${chips("proxima",OPT.proxima,d.proxima||[],"proximaOtro",d.proximaOtro||"")}<label>Nota breve<textarea name="proximaTexto">${esc(d.proximaTexto||"")}</textarea></label></div>
+ <div class="card"></div>
+</section><section class="collapsible-field" data-section="inclusion">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Inclusión y contexto <button type="button" class="help-dot" data-help-title="Inclusión y contexto" data-help-body="Revisa accesibilidad, participación, predictibilidad, comunicación y dignidad. No evalúa a la persona.">?</button></h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body"><p>Revisa el entorno y los apoyos.</p><div class="two">${inclusionFields(inc)}</div></div>
+ <div class="card actions"><button type="submit">${currentEditId?"Guardar cambios":"Guardar registro"}</button><button type="button" class="secondary" id="cancelForm">Cancelar</button></div></div>
+</section></form>`;
 }
 function bindSpec(root=document){
  root.querySelectorAll("[data-chip-group]").forEach(g=>g.addEventListener("change",()=>{const name=g.dataset.chipGroup, spec=root.querySelector(`[data-spec-for="${CSS.escape(name)}"]`);if(!spec)return;const on=[...g.querySelectorAll("input:checked")].some(i=>["otro","otra","otros","similar","no incluido"].includes(i.value.toLowerCase()));spec.classList.toggle("hidden",!on)}))
@@ -404,7 +472,7 @@ function recordFromForm(form,base={}){
 }
 async function renderForm(data=null){
  currentEditId=data?.id||null;document.querySelector("#screen-form").innerHTML=formTemplate(data||{});bindSpec(document.querySelector("#screen-form"));
- const f=document.querySelector("#recordForm");document.querySelector("#chooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);document.querySelector("#importFromForm")?.addEventListener("click",openImportDialog);bindHelpButtons(document.querySelector("#recordForm"));document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
+ const f=document.querySelector("#recordForm");document.querySelector("#chooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);document.querySelector("#importFromForm")?.addEventListener("click",openImportDialog);bindHelpButtons(document.querySelector("#recordForm"));document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
  document.querySelector("#riskSelect").onchange=e=>document.querySelector("#highRisk").classList.toggle("hidden",e.target.value!=="alto");
  document.querySelectorAll("[data-help=ante]").forEach(b=>b.onclick=()=>alert("Registra lo que ocurrió inmediatamente antes utilizando hechos observables y evitando interpretar intenciones."));
  let start=0,tick=null;const disp=document.querySelector("#timerDisplay");
@@ -414,9 +482,24 @@ async function renderForm(data=null){
 }
 function quickTemplate(d={}){
  return `<form id="quickForm"><div class="card screen-card">${screenCloseButton()}<h2>Registro rápido</h2><div class="two"><label class="required">Código pseudónimo<div class="code-row"><input name="codigo" required readonly value="${esc(d.codigo||"")}"><button type="button" id="quickChooseCodeBtn" class="secondary">Elegir / crear</button></div></label><label>Fecha y hora<input type="datetime-local" name="fechaHora" value="${esc(d.fechaHora||nowLocal())}"></label></div>
- <h3>Contexto</h3>${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}<h3>Antecedente</h3>${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
- <h3>Conducta</h3>${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}<label class="required">Descripción objetiva breve<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
- <h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
+ <section class="collapsible-field" data-section="qcontexto">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Contexto</h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
+</section><section class="collapsible-field" data-section="qantecedente">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Antecedente</h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
+ </div>
+</section><section class="collapsible-field" data-section="qconducta">
+  <button type="button" class="collapsible-head" aria-expanded="false">
+    <span><h3>Conducta</h3></span><i>⌄</i>
+  </button>
+  <div class="collapsible-body">${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}<label class="required">Descripción objetiva breve<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
+ </div>
+</section><h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
  <div class="two"><label>Intensidad<select name="intensidad">${[1,2,3,4,5].map(n=>`<option ${n===3?"selected":""}>${n}</option>`).join("")}</select></label><label>Riesgo<select name="riesgo">${["sin riesgo","leve","moderado","alto"].map(x=>`<option>${x}</option>`).join("")}</select></label></div>
  <div class="actions"><button>Guardar registro rápido</button><button type="button" id="quickComplete" class="secondary">Completar detalles</button><button type="button" id="quickCancel" class="secondary">Cancelar</button></div></div></form>`;
 }
@@ -425,7 +508,7 @@ function quickToRecord(form){
  antecedente:arrayVal(fd,"antecedente"),antecedenteOtro:one(fd,"antecedenteOtro"),antecedenteDesc:"",conducta:arrayVal(fd,"conducta"),conductaOtro:one(fd,"conductaOtro"),conductaDesc:one(fd,"conductaDesc"),duracionValor:0,duracionUnidad:"segundos",frecuencia:1,intensidad:Number(one(fd,"intensidad")),riesgo:one(fd,"riesgo"),consecuencia:arrayVal(fd,"consecuencia"),consecuenciaOtro:one(fd,"consecuenciaOtro"),consecuenciaDesc:"",hipotesis:[],hipotesisOtro:"",apoyos:[],apoyosOtro:"",apoyoValoracion:"",proxima:[],proximaOtro:"",proximaTexto:"",inclusion:{},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),demo:false,quick:true}
 }
 function renderQuick(){
- document.querySelector("#screen-quick").innerHTML=quickTemplate();bindSpec(document.querySelector("#screen-quick"));const f=document.querySelector("#quickForm");document.querySelector("#quickChooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);
+ document.querySelector("#screen-quick").innerHTML=quickTemplate();bindSpec(document.querySelector("#screen-quick"));const f=document.querySelector("#quickForm");document.querySelector("#quickChooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);
  document.querySelector("#quickCancel").onclick=()=>{renderHome();show("home")};
  f.onsubmit=async e=>{e.preventDefault();const r=quickToRecord(f);await putRecord(r);toast("Guardado");renderList("today");show("list")};
  document.querySelector("#quickComplete").onclick=async()=>{if(!f.reportValidity())return;const r=quickToRecord(f);currentEditId=null;await renderForm(r);show("form")}

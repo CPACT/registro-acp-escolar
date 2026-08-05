@@ -1228,3 +1228,57 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .home-utility-row{max-width:100%;margin:.55rem 0!important}
   .utility-btn{flex:1}
 }
+
+/* V20 — formularios desplegables */
+.collapsible-field{
+  margin:.6rem 0!important;
+  border:1px solid var(--border)!important;
+  border-radius:22px!important;
+  background:#fbfdfc!important;
+  overflow:hidden!important;
+}
+.collapsible-head{
+  width:100%!important;
+  min-height:58px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:.75rem!important;
+  padding:.7rem .9rem!important;
+  background:#fff!important;
+  color:var(--text)!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  text-align:left!important;
+}
+.collapsible-head span{display:block!important;min-width:0!important}
+.collapsible-head h3{
+  margin:0!important;
+  font-size:1rem!important;
+  color:var(--text)!important;
+}
+.collapsible-head i{
+  font-style:normal!important;
+  font-size:1.25rem!important;
+  color:var(--muted)!important;
+  transition:transform .18s ease!important;
+}
+.collapsible-field .collapsible-body{
+  display:none!important;
+  padding:.1rem .85rem .85rem!important;
+}
+.collapsible-field.open .collapsible-body{display:block!important}
+.collapsible-field.open .collapsible-head i{transform:rotate(180deg)!important}
+.collapsible-field.open .collapsible-head{
+  background:#f2f8f5!important;
+  border-bottom:1px solid var(--border)!important;
+}
+.other-reveal.hidden{display:none!important}
+.other-reveal{
+  margin-top:.45rem!important;
+}
+@media(max-width:560px){
+  .collapsible-head{min-height:54px!important;padding:.65rem .75rem!important}
+  .collapsible-field .collapsible-body{padding:.1rem .7rem .75rem!important}
+}

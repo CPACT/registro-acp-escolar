@@ -1711,3 +1711,11 @@ button,.chip,.bottom-nav button{min-height:44px}
 }
 .csv-conflict-card{max-width:560px}
 .csv-conflict-actions{display:grid!important;grid-template-columns:1fr 1fr;gap:.55rem!important}
+
+/* V21s — tres decisiones ante coincidencia CSV */
+.csv-conflict-actions.three{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem!important}
+@media(max-width:520px){.csv-conflict-actions.three{grid-template-columns:1fr}.csv-conflict-actions.three button{width:100%}}
+
+/* V21t — confirmación de registros CSV nuevos */
+.csv-new-actions{display:grid!important;grid-template-columns:1fr 1fr;gap:.55rem!important}
+@media(max-width:420px){.csv-new-actions{grid-template-columns:1fr}.csv-new-actions button{width:100%}}

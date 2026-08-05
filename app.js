@@ -1014,6 +1014,25 @@ function findCsvMinuteMatch(existingRecords,incoming){
   if(!code||!key)return null;
   return existingRecords.find(r=>String(r.codigo||"").trim()===code && minuteKey(r.fechaHora)===key)||null;
 }
+
+function askCsvNewRecord(incoming){
+  return new Promise(resolve=>{
+    const d=document.querySelector("#csvNewRecordDialog");
+    const summary=document.querySelector("#csvNewRecordSummary");
+    if(!d){resolve("cancel");return}
+    const when=new Date(incoming.fechaHora);
+    const whenText=Number.isNaN(when.getTime())?String(incoming.fechaHora||""):when.toLocaleString("es-ES",{dateStyle:"short",timeStyle:"short"});
+    summary.textContent=`No se ha encontrado otro registro del código ${incoming.codigo} en esa fecha y hora (${whenText}).`;
+    const save=document.querySelector("#csvNewRecordSave");
+    const cleanup=()=>{save.onclick=null;d.removeEventListener("close",onClose)};
+    const finish=action=>{cleanup();d.close();resolve(action)};
+    const onClose=()=>{cleanup();resolve("cancel")};
+    d.addEventListener("close",onClose,{once:true});
+    save.onclick=()=>finish("save");
+    d.showModal();
+  });
+}
+
 function askCsvConflict(existing,incoming,diffs=[]){
   return new Promise(resolve=>{
     const d=document.querySelector("#csvConflictDialog");
@@ -1023,23 +1042,27 @@ function askCsvConflict(existing,incoming,diffs=[]){
     const whenText=Number.isNaN(when.getTime())?String(incoming.fechaHora||""):when.toLocaleString("es-ES",{dateStyle:"short",timeStyle:"short"});
     summary.textContent=`Ya existe un registro del código ${incoming.codigo} en la misma fecha y hora (${whenText}).`;
     const both=document.querySelector("#csvConflictKeepBoth");
-    const cleanup=()=>{both.onclick=null;d.removeEventListener("close",onClose)};
+    const replace=document.querySelector("#csvConflictReplace");
+    const cleanup=()=>{both.onclick=null;replace.onclick=null;d.removeEventListener("close",onClose)};
     const finish=action=>{cleanup();d.close();resolve(action)};
     const onClose=()=>{cleanup();resolve("cancel")};
     d.addEventListener("close",onClose,{once:true});
     both.onclick=()=>finish("both");
+    replace.onclick=()=>finish("replace");
     d.showModal();
   });
 }
 async function importCsvRecordsWithConflictResolution(records){
   const existing=await allRecords();
-  let imported=0,duplicates=0;
+  let imported=0,duplicates=0,replaced=0;
   for(const incoming0 of records){
     const incoming={...incoming0};
     if(!incoming.id)incoming.id=uid();
-
     const match=findCsvMinuteMatch(existing,incoming);
+
     if(!match){
+      const action=await askCsvNewRecord(incoming);
+      if(action==="cancel")return {cancelled:true,imported,duplicates,replaced};
       await putRecord(incoming);
       existing.push(incoming);
       imported++;
@@ -1047,19 +1070,33 @@ async function importCsvRecordsWithConflictResolution(records){
     }
 
     const action=await askCsvConflict(match,incoming,[]);
-    if(action==="cancel")return {cancelled:true,imported,duplicates};
+    if(action==="cancel")return {cancelled:true,imported,duplicates,replaced};
 
-    incoming.id=uid();
-    incoming.duplicado=true;
-    incoming.duplicadoDe=match.id;
-    incoming.updatedAt=new Date().toISOString();
-    incoming.createdAt=incoming.createdAt||incoming.updatedAt;
+    if(action==="both"){
+      incoming.id=uid();
+      incoming.duplicado=true;
+      incoming.duplicadoDe=match.id;
+      incoming.updatedAt=new Date().toISOString();
+      incoming.createdAt=incoming.createdAt||incoming.updatedAt;
+      await putRecord(incoming);
+      existing.push(incoming);
+      duplicates++;
+      continue;
+    }
 
-    await putRecord(incoming);
-    existing.push(incoming);
-    duplicates++;
+    if(action==="replace"){
+      incoming.id=match.id;
+      incoming.duplicado=Boolean(match.duplicado);
+      incoming.duplicadoDe=match.duplicadoDe||null;
+      incoming.createdAt=match.createdAt||incoming.createdAt||new Date().toISOString();
+      incoming.updatedAt=new Date().toISOString();
+      await putRecord(incoming);
+      const i=existing.findIndex(r=>r.id===match.id);
+      if(i>=0)existing[i]=incoming;
+      replaced++;
+    }
   }
-  return {cancelled:false,imported,duplicates};
+  return {cancelled:false,imported,duplicates,replaced};
 }
 
 function openImportDialog(){

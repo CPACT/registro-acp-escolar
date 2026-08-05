@@ -1,4 +1,4 @@
-const CACHE="acp-shell-pwa-v41";
+const CACHE="acp-shell-pwa-v42";
 const CORE=["./","./index.html","./styles.css","./app.js","./manifest.webmanifest","./icon.svg"];
 
 self.addEventListener("install",event=>{

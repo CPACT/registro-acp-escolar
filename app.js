@@ -913,12 +913,19 @@ function countField(rs,field){
 }
 function statsData(rs){
   const durations=rs.filter(r=>Number(r.duracionValor)>0).map(r=>r.duracionUnidad==="minutos"?Number(r.duracionValor)*60:Number(r.duracionValor));
-  const help=rs.filter(r=>r.apoyoValoracion),yes=help.filter(r=>r.apoyoValoracion==="Sí").length,part=help.filter(r=>r.apoyoValoracion==="Parcialmente").length;
+  const rated=rs.filter(r=>["Sí","Parcialmente","No"].includes(r.apoyoValoracion));
+  const yes=rated.filter(r=>r.apoyoValoracion==="Sí").length;
+  const part=rated.filter(r=>r.apoyoValoracion==="Parcialmente").length;
+  const no=rated.filter(r=>r.apoyoValoracion==="No").length;
+  const notValuable=rs.filter(r=>r.apoyoValoracion==="No valorable").length;
   return {
     total:rs.length,codes:countField(rs,"codigo"),contexto:countField(rs,"contexto"),conducta:countField(rs,"conducta"),antecedente:countField(rs,"antecedente"),consecuencia:countField(rs,"consecuencia"),
     intensidad:countField(rs,"intensidad"),riesgo:countField(rs,"riesgo"),hipotesis:countField(rs,"hipotesis"),apoyos:countField(rs,"apoyos"),
     avgDuration:durations.length?Math.round(durations.reduce((a,b)=>a+b,0)/durations.length):0,
-    helpYes:help.length?Math.round(yes/help.length*100):0,helpSome:help.length?Math.round((yes+part)/help.length*100):0
+    supportUseful:rated.length?Math.round((yes+part)/rated.length*100):0,
+    supportYes:rated.length?Math.round(yes/rated.length*100):0,
+    supportRated:rated.length,
+    supportYesCount:yes,supportPartCount:part,supportNoCount:no,supportNotValuable:notValuable
   }
 }
 function humanRows(map,limit=20){return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,limit)}
@@ -933,7 +940,7 @@ async function buildStatsDocx(rs,opt={}){
   const codeLabel=opt.code&&opt.code!=="all"?opt.code:"Todos los códigos";
   let body=docxP("REGISTRO ACP ESCOLAR",{bold:true,size:32,color:"1F4F41"})+docxP("Patrones descriptivos",{bold:true,size:26})+docxP(`Ámbito: ${codeLabel} · Registros: ${rs.length}`,{size:20})+
     docxP("Las frecuencias y correlaciones observadas no demuestran por sí mismas la función de una conducta.",{size:18,color:"7A5A22"})+
-    docxTable([["Indicador","Valor"],["Registros",String(s.total)],["Duración media",`${s.avgDuration} s`],["Pareció ayudar — Sí",`${s.helpYes}%`],["Sí o parcialmente",`${s.helpSome}%`]])+
+    docxTable([["Indicador","Valor"],["Registros",String(s.total)],["Duración media",`${s.avgDuration} s`],["Apoyo útil (Sí o parcialmente)",`${s.supportUseful}%`],["Apoyo marcado Sí",`${s.supportYes}%`],["Registros valorados",String(s.supportRated)]])+
     docxP("Frecuencia por código pseudónimo",{bold:true,size:22,after:100})+docxTable([["Código","Registros"],...humanRows(s.codes).map(([a,b])=>[a,String(b)])])+
     docxP("Conductas más registradas",{bold:true,size:22,after:100})+docxTable([["Conducta","Frecuencia"],...humanRows(s.conducta).map(([a,b])=>[a,String(b)])])+
     docxP("Contextos",{bold:true,size:22,after:100})+docxTable([["Contexto","Frecuencia"],...humanRows(s.contexto).map(([a,b])=>[a,String(b)])])+
@@ -966,7 +973,7 @@ function xlsxRow(vals,header=false){return `<row>${vals.map(v=>xlsxCell(v,header
 async function buildStatsXlsx(rs,opt={}){
   const s=statsData(rs),flatRows=rs.map(flat),heads=flatRows.length?Object.keys(flatRows[0]):["codigo"];
   const sheet1=`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${xlsxRow(heads,true)}${flatRows.map(r=>xlsxRow(heads.map(h=>r[h]))).join("")}</sheetData></worksheet>`;
-  const summary=[["REGISTRO ACP ESCOLAR — Patrones descriptivos",""],["Registros",s.total],["Duración media (s)",s.avgDuration],["Pareció ayudar — Sí (%)",s.helpYes],["Sí o parcialmente (%)",s.helpSome],["",""],["Código pseudónimo","Registros"],...humanRows(s.codes),["",""],["Conducta","Frecuencia"],...humanRows(s.conducta),["",""],["Contexto","Frecuencia"],...humanRows(s.contexto),["",""],["Riesgo","Frecuencia"],...humanRows(s.riesgo)];
+  const summary=[["REGISTRO ACP ESCOLAR — Patrones descriptivos",""],["Registros",s.total],["Duración media (s)",s.avgDuration],["Apoyo útil — Sí o parcialmente (%)",s.supportUseful],["Apoyo marcado Sí (%)",s.supportYes],["Registros valorados",s.supportRated],["",""],["Código pseudónimo","Registros"],...humanRows(s.codes),["",""],["Conducta","Frecuencia"],...humanRows(s.conducta),["",""],["Contexto","Frecuencia"],...humanRows(s.contexto),["",""],["Riesgo","Frecuencia"],...humanRows(s.riesgo)];
   const sheet2=`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${summary.map((r,i)=>xlsxRow(r,i===0||r[0]==="Código pseudónimo"||r[0]==="Conducta"||r[0]==="Contexto"||r[0]==="Riesgo")).join("")}</sheetData></worksheet>`;
   let sheet3=`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${xlsxRow(["Gráficos visuales incluidos en el informe PDF/DOCX. Esta hoja mantiene los datos fuente."],true)}</sheetData></worksheet>`,extra=[],sheet3rel="";
   if(opt.charts){
@@ -1003,7 +1010,7 @@ function buildStatsPDF(rs,opt={}){
   function need(h){if(y-h<70)page()}
   function heading(x){need(34);rect(M,y-24,CW,28,[235,245,241]);t(M+10,y-17,x,11,true,[31,79,65]);y-=38}
   function table(title,map){heading(title);const rows=humanRows(map,10),max=rows[0]?.[1]||1;for(const [k,v] of rows){need(24);t(M,y,k.slice(0,34),8.5,false,textc);rect(M+190,y-8,Math.max(2,(CW-250)*v/max),10,brand);t(W-M-42,y,String(v),8.5,true,textc);y-=22}}
-  page();t(M,y,`Ámbito: ${opt.code&&opt.code!=="all"?opt.code:"Todos los códigos"} · ${rs.length} registros`,10,true,textc);y-=22;t(M,y,`Duración media: ${s.avgDuration} s · Pareció ayudar: ${s.helpYes}%`,9,false,muted);y-=28;
+  page();t(M,y,`Ámbito: ${opt.code&&opt.code!=="all"?opt.code:"Todos los códigos"} · ${rs.length} registros`,10,true,textc);y-=22;t(M,y,`Duración media: ${s.avgDuration} s · Apoyo útil: ${s.supportUseful}%`,9,false,muted);y-=28;
   if(opt.charts){table("Conductas más registradas",s.conducta);table("Contextos",s.contexto);heading("Distribución de riesgos");const entries=humanRows(s.riesgo,6),total=entries.reduce((a,b)=>a+b[1],0)||1;let ang=0,cx=M+125,cy=y-120,R=80;entries.forEach(([k,v],i)=>{const a2=ang+Math.PI*2*v/total,pts=[[cx,cy]];for(let st=0;st<=18;st++){const a=ang+(a2-ang)*st/18;pts.push([cx+Math.cos(a)*R,cy+Math.sin(a)*R])}fill(pal[i%pal.length]);cmd(`${pts[0][0]} ${pts[0][1]} m ${pts.slice(1).map(p=>`${p[0].toFixed(1)} ${p[1].toFixed(1)} l`).join(" ")} h f`);ang=a2});entries.forEach(([k,v],i)=>{rect(M+255,y-55-i*24,12,12,pal[i%pal.length]);t(M+274,y-51-i*24,`${k}: ${v}`,8.5,false,textc)});y-=190}
   heading("Registros por código pseudónimo");for(const [k,v] of humanRows(s.codes,30)){need(20);t(M,y,k,9,true,textc);t(M+150,y,String(v),9,false,textc);y-=18}
   if(opt.details){heading("Detalle de registros");for(const r of rs){need(42);t(M,y,`${r.codigo} · ${new Date(r.fechaHora).toLocaleDateString("es-ES")} · ${r.riesgo||"—"}`,8.5,true,textc);t(M,y-14,`Contexto: ${(r.contexto||[]).join(", ").slice(0,72)}`,7.8,false,muted);t(M,y-27,`Conducta: ${(r.conducta||[]).join(", ").slice(0,72)}`,7.8,false,muted);y-=42}}
@@ -1144,7 +1151,18 @@ async function renderStats(){
  </div>`;
  const state=()=>({code:document.querySelector("#statsCode").value,from:document.querySelector("#statsFrom").value,to:document.querySelector("#statsTo").value,charts:document.querySelector("#statsCharts").checked,details:document.querySelector("#statsDetails").checked});
  const current=()=>statsFilterRecords(all,state());
- const draw=()=>{const rs=current(),s=statsData(rs),charts=state().charts;document.querySelector("#statsSummary").innerHTML=`<div class="stats-kpis"><div><span>Registros</span><strong>${s.total}</strong></div><div><span>Duración media</span><strong>${s.avgDuration} s</strong></div><div><span>Ayudó</span><strong>${s.helpYes}%</strong></div><div><span>Códigos</span><strong>${Object.keys(s.codes).length}</strong></div></div>${charts?`<div class="chart-grid"><div class="stat"><h3>Conductas</h3>${svgBars(s.conducta)}</div><div class="stat"><h3>Contextos</h3>${svgBars(s.contexto)}</div><div class="stat"><h3>Riesgos</h3>${svgPie(s.riesgo)}</div><div class="stat"><h3>Registros por código</h3>${svgBars(s.codes)}</div></div>`:""}<details class="stats-table"><summary>Ver resumen numérico</summary><div class="table-wrap"><table><thead><tr><th>Código</th><th>Registros</th></tr></thead><tbody>${humanRows(s.codes,100).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join("")}</tbody></table></div></details>${state().details?`<details open><summary>Detalle de ${rs.length} registros</summary><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Código</th><th>Contexto</th><th>Conducta</th><th>Intensidad</th><th>Riesgo</th></tr></thead><tbody>${rs.map(r=>`<tr><td>${esc(new Date(r.fechaHora).toLocaleDateString("es-ES"))}</td><td>${esc(r.codigo)}</td><td>${esc((r.contexto||[]).join(", "))}</td><td>${esc((r.conducta||[]).join(", "))}</td><td>${esc(r.intensidad)}</td><td>${esc(r.riesgo)}</td></tr>`).join("")}</tbody></table></div></details>`:""}`};
+ const draw=()=>{const rs=current(),s=statsData(rs),charts=state().charts;document.querySelector("#statsSummary").innerHTML=`<div class="stats-kpis"><div><span>Registros</span><strong>${s.total}</strong></div><div><span>Duración media</span><strong>${s.avgDuration} s</strong></div><div class="kpi-with-help">
+      <span>Apoyo útil <button type="button" class="help-dot stat-help" data-help-title="Apoyo útil" data-help-body="${encodeURIComponent("Porcentaje de registros valorados en los que el apoyo se marcó como Sí o Parcialmente. Los registros No valorable se excluyen del cálculo. Es un indicador descriptivo y no demuestra por sí solo la eficacia del apoyo.")}">?</button></span>
+      <strong>${s.supportUseful}%</strong>
+    </div><div><span>Códigos</span><strong>${Object.keys(s.codes).length}</strong></div></div><details class="support-breakdown">
+      <summary>Ver desglose de apoyos</summary>
+      <div class="support-breakdown-grid">
+        <span><b>Sí</b> ${s.supportYesCount}</span>
+        <span><b>Parcialmente</b> ${s.supportPartCount}</span>
+        <span><b>No</b> ${s.supportNoCount}</span>
+        <span><b>No valorable</b> ${s.supportNotValuable}</span>
+      </div>
+    </details>${charts?`<div class="chart-grid"><div class="stat"><h3>Conductas</h3>${svgBars(s.conducta)}</div><div class="stat"><h3>Contextos</h3>${svgBars(s.contexto)}</div><div class="stat"><h3>Riesgos</h3>${svgPie(s.riesgo)}</div><div class="stat"><h3>Registros por código</h3>${svgBars(s.codes)}</div></div>`:""}<details class="stats-table"><summary>Ver resumen numérico</summary><div class="table-wrap"><table><thead><tr><th>Código</th><th>Registros</th></tr></thead><tbody>${humanRows(s.codes,100).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join("")}</tbody></table></div></details>${state().details?`<details open><summary>Detalle de ${rs.length} registros</summary><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Código</th><th>Contexto</th><th>Conducta</th><th>Intensidad</th><th>Riesgo</th></tr></thead><tbody>${rs.map(r=>`<tr><td>${esc(new Date(r.fechaHora).toLocaleDateString("es-ES"))}</td><td>${esc(r.codigo)}</td><td>${esc((r.contexto||[]).join(", "))}</td><td>${esc((r.conducta||[]).join(", "))}</td><td>${esc(r.intensidad)}</td><td>${esc(r.riesgo)}</td></tr>`).join("")}</tbody></table></div></details>`:""}`};
  document.querySelector("#statsApply").onclick=draw;draw();
  const gate=(fn)=>reviewGate(async()=>{const rs=current();if(!rs.length){toast("No hay registros con esos filtros");throw new Error("none")}await fn(rs,state())});
  document.querySelector("#statsPdf").onclick=()=>gate(exportStatsPDF);

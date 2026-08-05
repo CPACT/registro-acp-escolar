@@ -1490,3 +1490,12 @@ button,.chip,.bottom-nav button{min-height:44px}
 @media(max-width:420px){.hero-header .brand-icon{width:44px!important;height:44px!important;flex-basis:44px!important;border-radius:14px!important}.hero-header .brand-text h1{font-size:.9rem!important}.hero-header .brand-text p{font-size:.64rem!important}}
 .records-tools-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}.records-tools-row span{font-size:.76rem;color:var(--muted)}
 .record.just-saved{border-color:#4c9a78!important;box-shadow:0 0 0 4px rgba(76,154,120,.14)!important;background:#f3faf7!important}
+
+/* V21b — indicador de apoyo más claro */
+.kpi-with-help>span{display:flex!important;align-items:center!important;gap:.28rem!important}
+.stat-help{width:22px!important;height:22px!important;min-height:22px!important;font-size:.72rem!important}
+.support-breakdown{margin:.55rem 0 .8rem;border:1px solid var(--border);border-radius:16px;background:#fafcfb}
+.support-breakdown summary{padding:.55rem .7rem;font-size:.8rem;font-weight:800;color:var(--brand);cursor:pointer}
+.support-breakdown-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.4rem;padding:0 .7rem .7rem}
+.support-breakdown-grid span{padding:.45rem .55rem;border-radius:12px;background:#f1f6f4;font-size:.78rem}
+@media(max-width:560px){.support-breakdown-grid{grid-template-columns:1fr 1fr}}

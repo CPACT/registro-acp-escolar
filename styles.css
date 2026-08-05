@@ -1634,3 +1634,12 @@ button,.chip,.bottom-nav button{min-height:44px}
  .temporal-code-picker{grid-template-columns:repeat(2,minmax(0,1fr))}
  .hour-line-scroll svg{min-width:620px}
 }
+
+/* V21i — opciones previas de exportación */
+.stats-export-dialog{max-width:620px}
+.stats-export-options{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin:.75rem 0}
+.stats-export-options .checkline{min-height:46px;padding:.55rem .65rem;border:1px solid var(--border);border-radius:14px;background:#f8fbfa}
+@media(max-width:560px){.stats-export-options{grid-template-columns:1fr}}
+
+/* V21j — configuración previa de informe por alumnado */
+.export-choice-hint{margin:.55rem 0 .25rem!important;font-size:.76rem!important}

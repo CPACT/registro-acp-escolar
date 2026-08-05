@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#2f6658">
-  <meta name="acp-build" content="pwa-final-v21h-2026-08-05">
+  <meta name="acp-build" content="pwa-final-v21j-2026-08-05">
   <meta name="description" content="Registro ACP Escolar — Observar · Comprender · Prevenir · Apoyar">
   <title>Registro ACP Escolar</title>
   <link rel="manifest" href="manifest.webmanifest">
@@ -212,5 +212,43 @@
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   <script src="app.js" defer></script>
 <div id="a11yLive" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+<dialog id="statsExportOptionsDialog">
+  <form method="dialog" class="dialog-card stats-export-dialog">
+    <div class="modal-head"><h2>Qué incluir en el informe</h2><button value="cancel" class="icon-close" aria-label="Cerrar">×</button></div>
+    <p class="hint">Se respetarán los filtros ya aplicados en Patrones descriptivos.</p>
+    <div class="stats-export-options">
+      <label class="checkline"><input id="expSummary" type="checkbox" checked> Resumen general</label>
+      <label class="checkline"><input id="expCharts" type="checkbox" checked> Gráficos de conductas, contextos y riesgos</label>
+      <label class="checkline"><input id="expTemporalHeat" type="checkbox" checked> Mapa de frecuencia por día y hora</label>
+      <label class="checkline"><input id="expTemporalLine" type="checkbox" checked> Línea de frecuencia por hora</label>
+      <label class="checkline"><input id="expCodes" type="checkbox" checked> Registros por código</label>
+      <label class="checkline"><input id="expSupport" type="checkbox" checked> Desglose de apoyos</label>
+      <label class="checkline"><input id="expDetails" type="checkbox"> Detalle de registros</label>
+    </div>
+    <div class="actions"><button value="cancel" class="secondary">Cancelar</button><button id="confirmStatsExportBtn" type="button">Continuar</button></div>
+  </form>
+</dialog>
+<dialog id="studentExportOptionsDialog">
+  <form method="dialog" class="dialog-card stats-export-dialog">
+    <div class="modal-head">
+      <h2>Qué incluir en el informe de alumnado</h2>
+      <button value="cancel" class="icon-close" aria-label="Cerrar">×</button>
+    </div>
+    <p class="hint">Se respetarán el alumnado seleccionado, el orden y los registros ya filtrados.</p>
+    <div class="stats-export-options">
+      <label class="checkline"><input id="stuExpSummary" type="checkbox" checked> Resumen general</label>
+      <label class="checkline"><input id="stuExpCharts" type="checkbox" checked> Gráficos</label>
+      <label class="checkline"><input id="stuExpTemporalHeat" type="checkbox" checked> Mapa día / hora</label>
+      <label class="checkline"><input id="stuExpTemporalLine" type="checkbox" checked> Línea de frecuencia horaria</label>
+      <label class="checkline"><input id="stuExpCodes" type="checkbox" checked> Resumen por código</label>
+      <label class="checkline"><input id="stuExpSupport" type="checkbox" checked> Desglose de apoyos</label>
+      <label class="checkline"><input id="stuExpDetails" type="checkbox" checked> Detalle de registros</label>
+    </div>
+    <div class="actions">
+      <button value="cancel" class="secondary">Cancelar</button>
+      <button id="confirmStudentExportBtn" type="button">Continuar</button>
+    </div>
+  </form>
+</dialog>
 </body>
 </html>

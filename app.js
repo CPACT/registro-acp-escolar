@@ -753,6 +753,24 @@ function sortStudentGroups(groups,order="recent"){
   return [...groups].sort((a,b)=>order==="oldest"?(a.last-b.last):(b.last-a.last));
 }
 
+
+let pendingStudentExport=null;
+function openStudentExportOptions(format,rs,baseOpt){
+  pendingStudentExport={format,rs,baseOpt};
+  document.querySelector("#studentExportOptionsDialog")?.showModal();
+}
+function readStudentExportOptions(){
+  return {
+    summary:document.querySelector("#stuExpSummary").checked,
+    charts:document.querySelector("#stuExpCharts").checked,
+    temporalHeat:document.querySelector("#stuExpTemporalHeat").checked,
+    temporalLine:document.querySelector("#stuExpTemporalLine").checked,
+    codes:document.querySelector("#stuExpCodes").checked,
+    support:document.querySelector("#stuExpSupport").checked,
+    details:document.querySelector("#stuExpDetails").checked
+  };
+}
+
 async function renderReport(){
  const all=await allRecords();
  const groups=studentReportGroups(all);
@@ -789,7 +807,7 @@ async function renderReport(){
      </div>
    </details>
 
-   <div class="actions report-export-actions">
+   <p class="hint export-choice-hint">Al exportar podrás elegir qué apartados incluir.</p><div class="actions report-export-actions">
      <button id="studentPdf">PDF</button>
      <button id="studentDocx">DOCX</button>
      <button id="studentXlsx">XLSX</button>
@@ -861,10 +879,20 @@ async function renderReport(){
    await reviewGate(async()=>fn(rs,options()));
  };
 
- document.querySelector("#studentPdf").onclick=()=>exportSelected(exportStatsPDF);
- document.querySelector("#studentDocx").onclick=()=>exportSelected(exportStatsDOCX);
- document.querySelector("#studentXlsx").onclick=()=>exportSelected(exportStatsXlsx);
- document.querySelector("#studentCsv").onclick=()=>exportSelected(async rs=>exportStatsCSV(rs));
+ const prepStudentExport=(format)=>{
+   const rs=currentRecords();
+   if(!rs.length){toast("Selecciona al menos un código");announceA11y("Selecciona al menos un código.");return}
+   const baseOpt={
+     code:selected.size===1?[...selected][0]:"all",
+     order:document.querySelector("#studentOrder").value
+   };
+   openStudentExportOptions(format,rs,baseOpt);
+ };
+
+ document.querySelector("#studentPdf").onclick=()=>prepStudentExport("pdf");
+ document.querySelector("#studentDocx").onclick=()=>prepStudentExport("docx");
+ document.querySelector("#studentXlsx").onclick=()=>prepStudentExport("xlsx");
+ document.querySelector("#studentCsv").onclick=()=>prepStudentExport("csv");
 
  renderPicker();
  bindScreenClose(document.querySelector("#screen-report"));
@@ -1096,13 +1124,60 @@ function statsData(rs){
   };
 }
 function humanRows(map,limit=20){return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,limit)}
+
+async function temporalHeatmapPng(records,title="Frecuencia por día y hora"){
+  const h=temporalHeatmapData(records);
+  const active=h.hours.filter(hour=>h.matrix.some(row=>row[hour]>0));
+  const minHour=active.length?Math.max(0,Math.min(...active)-1):7;
+  const maxHour=active.length?Math.min(23,Math.max(...active)+1):18;
+  const hours=h.hours.filter(x=>x>=minHour&&x<=maxHour);
+  const cellW=70,cellH=42,left=90,top=80,width=left+hours.length*cellW+40,height=top+7*cellH+65;
+  const c=document.createElement("canvas");c.width=width;c.height=height;const ctx=c.getContext("2d");
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,width,height);ctx.fillStyle="#1f4f41";ctx.font="bold 24px Arial";ctx.fillText(title,25,35);
+  ctx.font="14px Arial";ctx.textAlign="center";ctx.fillStyle="#61766e";hours.forEach((hour,i)=>ctx.fillText(`${String(hour).padStart(2,"0")}h`,left+i*cellW+cellW/2,65));
+  const fills=["#f8fbfa","#e2f0ea","#b7d8cb","#78ad98","#347b64"];
+  h.days.forEach((day,di)=>{
+    ctx.textAlign="right";ctx.fillStyle="#263b35";ctx.fillText(day,left-12,top+di*cellH+26);
+    hours.forEach((hour,i)=>{
+      const v=h.matrix[di][hour],lev=heatLevel(v,h.max),x=left+i*cellW,y=top+di*cellH;
+      ctx.fillStyle=fills[lev];ctx.fillRect(x+2,y+2,cellW-4,cellH-4);
+      if(v){ctx.fillStyle=lev>=4?"#fff":"#173e32";ctx.textAlign="center";ctx.fillText(String(v),x+cellW/2,y+26)}
+    });
+  });
+  return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("PNG")),"image/png"));
+}
+async function hourlyLinePng(records,title="Frecuencia por hora"){
+  const data=hourlyFrequencyData(records),W=1100,H=460,L=80,R=45,T=70,B=70,pW=W-L-R,pH=H-T-B,max=Math.max(1,...data.map(d=>d.count));
+  const c=document.createElement("canvas");c.width=W;c.height=H;const ctx=c.getContext("2d");
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,W,H);ctx.fillStyle="#1f4f41";ctx.font="bold 28px Arial";ctx.fillText(title,35,38);
+  ctx.font="16px Arial";ctx.strokeStyle="#e4ece8";ctx.fillStyle="#61766e";
+  [0,.25,.5,.75,1].forEach(fr=>{const y=T+pH-fr*pH,v=Math.round(fr*max);ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(W-R,y);ctx.stroke();ctx.textAlign="right";ctx.fillText(String(v),L-12,y+5)});
+  const pts=data.map((d,i)=>({d,x:L+(data.length===1?pW/2:i/(data.length-1)*pW),y:T+pH-d.count/max*pH}));
+  ctx.strokeStyle="#347b64";ctx.lineWidth=5;ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();
+  pts.forEach(p=>{ctx.fillStyle="#347b64";ctx.beginPath();ctx.arc(p.x,p.y,7,0,Math.PI*2);ctx.fill();ctx.textAlign="center";ctx.fillStyle="#61766e";ctx.fillText(`${String(p.d.hour).padStart(2,"0")}h`,p.x,H-30)});
+  return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("PNG")),"image/png"));
+}
+
 async function buildStatsDocx(rs,opt={}){
   const s=statsData(rs),images=[],rels=[];let imageXml="";
+  let rid=1;
   if(opt.charts){
     const bar=await canvasPng("bar","Conductas más registradas",s.conducta),pie=await canvasPng("pie","Distribución de riesgos",s.riesgo);
     images.push({name:"word/media/bar.png",data:await blobBytes(bar)},{name:"word/media/risk.png",data:await blobBytes(pie)});
-    rels.push(`<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/bar.png"/>`,`<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/risk.png"/>`);
-    imageXml=docxImageDrawing("rId1","Conductas")+docxImageDrawing("rId2","Riesgos");
+    rels.push(`<Relationship Id="rId${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/bar.png"/>`);imageXml+=docxImageDrawing(`rId${rid++}`,"Conductas");
+    rels.push(`<Relationship Id="rId${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/risk.png"/>`);imageXml+=docxImageDrawing(`rId${rid++}`,"Riesgos");
+  }
+  if(opt.temporalHeat){
+    const heat=await temporalHeatmapPng(rs);
+    images.push({name:"word/media/heatmap.png",data:await blobBytes(heat)});
+    rels.push(`<Relationship Id="rId${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/heatmap.png"/>`);
+    imageXml+=docxP("Frecuencia por día y hora",{bold:true,size:22})+docxImageDrawing(`rId${rid++}`,"Mapa horario",520,300);
+  }
+  if(opt.temporalLine){
+    const line=await hourlyLinePng(rs);
+    images.push({name:"word/media/hourline.png",data:await blobBytes(line)});
+    rels.push(`<Relationship Id="rId${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/hourline.png"/>`);
+    imageXml+=docxP("Frecuencia por hora",{bold:true,size:22})+docxImageDrawing(`rId${rid++}`,"Frecuencia por hora",520,260);
   }
   const codeLabel=opt.code&&opt.code!=="all"?opt.code:"Todos los códigos";
   let body=docxP("REGISTRO ACP ESCOLAR",{bold:true,size:32,color:"1F4F41"})+docxP("Patrones descriptivos",{bold:true,size:26})+docxP(`Ámbito: ${codeLabel} · Registros: ${rs.length}`,{size:20})+
@@ -1204,7 +1279,24 @@ function buildStatsPDF(rs,opt={}){
   }
   page();t(M,y,`Ámbito: ${opt.code&&opt.code!=="all"?opt.code:"Todos los códigos"} · ${rs.length} registros`,10,true,textc);y-=22;t(M,y,`Duración media: ${s.avgDuration} s · Apoyo útil: ${s.supportUseful}%`,9,false,muted);y-=28;
   if(opt.charts){table("Conductas más registradas",s.conducta);table("Contextos",s.contexto);heading("Distribución de riesgos");const entries=humanRows(s.riesgo,6),total=entries.reduce((a,b)=>a+b[1],0)||1;let ang=0,cx=M+105,cy=y-105,R=68;entries.forEach(([k,v],i)=>{const a2=ang+Math.PI*2*v/total,pts=[[cx,cy]];for(let st=0;st<=18;st++){const a=ang+(a2-ang)*st/18;pts.push([cx+Math.cos(a)*R,cy+Math.sin(a)*R])}fill(pal[i%pal.length]);cmd(`${pts[0][0]} ${pts[0][1]} m ${pts.slice(1).map(p=>`${p[0].toFixed(1)} ${p[1].toFixed(1)} l`).join(" ")} h f`);ang=a2});entries.forEach(([k,v],i)=>{rect(M+255,y-55-i*24,12,12,pal[i%pal.length]);t(M+274,y-51-i*24,`${k}: ${v}`,8.5,false,textc)});y-=170}
-  heading("Registros por código pseudónimo");for(const [k,v] of humanRows(s.codes,30)){need(20);t(M,y,k,9,true,textc);t(M+150,y,String(v),9,false,textc);y-=18}
+  if(opt.codes!==false){heading("Registros por código pseudónimo");for(const [k,v] of humanRows(s.codes,30)){need(20);t(M,y,k,9,true,textc);t(M+150,y,String(v),9,false,textc);y-=18}}
+  if(opt.temporalHeat){
+    heading("Frecuencia por día y hora");
+    const h=temporalHeatmapData(rs),hours=h.hours.filter(hr=>h.matrix.some(row=>row[hr]>0));
+    const hs=hours.length?hours: [8,9,10,11,12,13,14,15];
+    for(let di=0;di<h.days.length;di++){
+      need(20);
+      const vals=hs.map(hr=>`${String(hr).padStart(2,"0")}h:${h.matrix[di][hr]}`).join("  ");
+      t(M,y,`${h.days[di]}  ${vals}`,7.2,false,textc);y-=17;
+    }
+  }
+  if(opt.temporalLine){
+    heading("Frecuencia por hora");
+    const hd=hourlyFrequencyData(rs);
+    for(let i=0;i<hd.length;i+=6){
+      need(20);t(M,y,hd.slice(i,i+6).map(x=>`${String(x.hour).padStart(2,"0")}h:${x.count}`).join("   "),8,false,textc);y-=18;
+    }
+  }
   if(opt.details){heading("Detalle de registros");for(const r of rs){need(42);t(M,y,`${r.codigo} · ${new Date(r.fechaHora).toLocaleDateString("es-ES")} · ${r.riesgo||"—"}`,8.5,true,textc);t(M,y-14,`Contexto: ${(r.contexto||[]).join(", ").slice(0,72)}`,7.8,false,muted);t(M,y-27,`Conducta: ${(r.conducta||[]).join(", ").slice(0,72)}`,7.8,false,muted);y-=42}}
   t(M,38,"Autor: Carlos Tejero · CC BY-NC-SA 4.0 · Datos locales. No diagnóstico.",7.2,false,muted);
   if(ops.length)pages.push(ops.join("\n"));
@@ -1433,6 +1525,24 @@ function renderHourlyLineChart(records,title="Frecuencia por hora"){
   </div>`;
 }
 
+
+let pendingStatsExport=null;
+function openStatsExportOptions(format,rs,baseOpt){
+  pendingStatsExport={format,rs,baseOpt};
+  document.querySelector("#statsExportOptionsDialog")?.showModal();
+}
+function readStatsExportOptions(){
+  return {
+    summary:document.querySelector("#expSummary").checked,
+    charts:document.querySelector("#expCharts").checked,
+    temporalHeat:document.querySelector("#expTemporalHeat").checked,
+    temporalLine:document.querySelector("#expTemporalLine").checked,
+    codes:document.querySelector("#expCodes").checked,
+    support:document.querySelector("#expSupport").checked,
+    details:document.querySelector("#expDetails").checked
+  };
+}
+
 async function renderStats(){
  const all=await allRecords();
  const groups=studentReportGroups(all);
@@ -1620,10 +1730,15 @@ async function renderStats(){
    await fn(rs,{charts:state().charts,details:state().details,code:codeLabel});
  });
 
- document.querySelector("#statsPdf").onclick=()=>gate(exportStatsPDF);
- document.querySelector("#statsDocx").onclick=()=>gate(exportStatsDOCX);
- document.querySelector("#statsXlsx").onclick=()=>gate(exportStatsXlsx);
- document.querySelector("#statsCsv").onclick=()=>gate(async rs=>exportStatsCSV(rs));
+ const prep=(format)=>reviewGate(async()=>{
+   const rs=current();if(!rs.length){toast("No hay registros con esos filtros");return}
+   const codeLabel=selected.size===1?[...selected][0]:"all";
+   openStatsExportOptions(format,rs,{code:codeLabel,order:state().order});
+ });
+ document.querySelector("#statsPdf").onclick=()=>prep("pdf");
+ document.querySelector("#statsDocx").onclick=()=>prep("docx");
+ document.querySelector("#statsXlsx").onclick=()=>prep("xlsx");
+ document.querySelector("#statsCsv").onclick=()=>prep("csv");
 
  renderCodePicker();renderTemporalCodePicker();
  bindScreenClose(document.querySelector("#screen-stats"));
@@ -1738,6 +1853,32 @@ async function navigate(dest){
 document.addEventListener("DOMContentLoaded",async()=>{
  try{
    db=await openDB();
+
+ document.querySelector("#confirmStudentExportBtn")?.addEventListener("click",async()=>{
+   if(!pendingStudentExport)return;
+   const opts={...pendingStudentExport.baseOpt,...readStudentExportOptions()};
+   const {format,rs}=pendingStudentExport;
+   document.querySelector("#studentExportOptionsDialog")?.close();
+   pendingStudentExport=null;
+   if(format==="pdf")await reviewGate(async()=>exportStatsPDF(rs,opts));
+   if(format==="docx")await reviewGate(async()=>exportStatsDOCX(rs,opts));
+   if(format==="xlsx")await reviewGate(async()=>exportStatsXlsx(rs,opts));
+   if(format==="csv")await reviewGate(async()=>exportStatsCSV(rs));
+ });
+
+
+ document.querySelector("#confirmStatsExportBtn")?.addEventListener("click",async()=>{
+   if(!pendingStatsExport)return;
+   const opts={...pendingStatsExport.baseOpt,...readStatsExportOptions()};
+   const {format,rs}=pendingStatsExport;
+   document.querySelector("#statsExportOptionsDialog")?.close();
+   pendingStatsExport=null;
+   if(format==="pdf")await exportStatsPDF(rs,opts);
+   if(format==="docx")await exportStatsDOCX(rs,opts);
+   if(format==="xlsx")await exportStatsXlsx(rs,opts);
+   if(format==="csv")await exportStatsCSV(rs);
+ });
+
  }catch(err){
    console.error("No se pudo abrir el almacenamiento local:",err);
    const h=document.querySelector("#screen-home");

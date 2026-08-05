@@ -1654,3 +1654,25 @@ button,.chip,.bottom-nav button{min-height:44px}
 
 /* V21m — flujo sin correo integrado */
 .institutional-export-note{margin-top:.65rem}
+
+/* V21n — barra inferior con cuatro acciones */
+.bottom-nav{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+}
+.bottom-nav button{
+  min-width:0!important;
+  padding:.45rem .25rem!important;
+  gap:.18rem!important;
+}
+.bottom-nav .bottom-icon{
+  display:block;
+  font-size:1.15rem;
+  line-height:1;
+}
+.bottom-nav button>span:last-child{
+  font-size:.72rem!important;
+  white-space:nowrap!important;
+}
+@media(max-width:380px){
+  .bottom-nav button>span:last-child{font-size:.68rem!important}
+}

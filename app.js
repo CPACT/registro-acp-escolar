@@ -1858,12 +1858,25 @@ async function renderExport(){
 
 async function navigate(dest){
  const protectedScreens=["form","quick","today","all","report","stats","settings"];
- const go=async()=>{if(dest==="reports"){openReportsChooser();return}if(dest==="importcsv"){openImportDialog();return}if(dest==="more"){renderMore();return}if(dest==="form"){await renderForm();show("form")}else if(dest==="quick"){renderQuick();show("quick")}else if(dest==="today"){await renderList("today");show("list")}else if(dest==="all"){await renderList("all");show("list")}else if(dest==="report"){selectedExportIds=[];await renderReport();show("report")}else if(dest==="stats"){await renderStats();show("stats")}else if(dest==="help"){renderHelp();show("help")}else if(dest==="privacy"){renderPrivacy();show("privacy")}else if(dest==="about"){renderAbout();show("about")}else if(dest==="settings"){await renderSettings();show("settings")}};
+ const go=async()=>{if(dest==="reports"){openReportsChooser();return}if(dest==="importcsv"){openImportDialog();return}if(dest==="form"){await renderForm();show("form")}else if(dest==="quick"){renderQuick();show("quick")}else if(dest==="today"){await renderList("today");show("list")}else if(dest==="all"){await renderList("all");show("list")}else if(dest==="report"){selectedExportIds=[];await renderReport();show("report")}else if(dest==="stats"){await renderStats();show("stats")}else if(dest==="help"){renderHelp();show("help")}else if(dest==="privacy"){renderPrivacy();show("privacy")}else if(dest==="about"){renderAbout();show("about")}else if(dest==="settings"){await renderSettings();show("settings")}};
  if(protectedScreens.includes(dest))requirePin(go);else go()
 }
 document.addEventListener("DOMContentLoaded",async()=>{
  try{
    db=await openDB();
+
+ document.querySelectorAll("[data-bottom-nav]").forEach(b=>{
+   if(b.dataset.bottomNavBound==="1")return;
+   b.dataset.bottomNavBound="1";
+   b.addEventListener("click",async()=>{
+     const dest=b.dataset.bottomNav;
+     if(dest==="reports"){openReportsChooser();return}
+     if(dest==="list"){await renderList("all");show("list");return}
+     if(dest==="form"){await renderForm();show("form");return}
+     if(dest==="home"){await goHomeSafe();return}
+   });
+ });
+
 
  document.querySelector("#confirmStudentExportBtn")?.addEventListener("click",async()=>{
    if(!pendingStudentExport)return;

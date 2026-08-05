@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#2f6658">
-  <meta name="acp-build" content="pwa-final-v8-2026-08-05">
+  <meta name="acp-build" content="pwa-final-v12-2026-08-05">
   <meta name="description" content="Registro ACP Escolar — Observar · Comprender · Prevenir · Apoyar">
   <title>Registro ACP Escolar</title>
   <link rel="manifest" href="manifest.webmanifest">
@@ -37,6 +37,7 @@
     <section id="screen-about" class="screen hidden"></section>
     <section id="screen-settings" class="screen hidden"></section>
   </main>
+<button id="floatingHelpBtn" class="floating-help" type="button" aria-label="Ayuda">?</button>
   <nav class="bottom-nav" aria-label="Navegación principal">
     <button type="button" data-bottom-nav="home" aria-label="Inicio"><span class="nav-icon">⌂</span><span>Inicio</span></button>
     <button type="button" data-bottom-nav="all" aria-label="Registros"><span class="nav-icon">▤</span><span>Registros</span></button>
@@ -45,6 +46,63 @@
     <button type="button" data-bottom-nav="more" aria-label="Más"><span class="nav-icon">•••</span><span>Más</span></button>
   </nav>
 
+
+
+  <dialog id="codeManagerDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="modal-head"><h2>Código pseudónimo</h2><button value="cancel" class="icon-close" aria-label="Cerrar">×</button></div>
+      <p class="hint">El código no debe contener nombre, iniciales, fecha de nacimiento, curso u otros datos que permitan identificar directamente a la persona.</p>
+      <div class="two">
+        <label>Usar código existente
+          <select id="existingCodeSelect"><option value="">Seleccionar…</option></select>
+        </label>
+        <label>Crear código nuevo
+          <input id="newCodePreview" type="text" readonly aria-readonly="true">
+        </label>
+      </div>
+      <div class="actions">
+        <button id="useExistingCodeBtn" type="button" class="secondary">Usar seleccionado</button>
+        <button id="createNewCodeBtn" type="button">Crear código</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="centerCustomizeDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="modal-head"><h2>Personalización del centro</h2><button value="cancel" class="icon-close" aria-label="Cerrar">×</button></div>
+      <p class="hint">Estos datos se guardan solo en este dispositivo. No incluyas información del alumnado.</p>
+      <label>Nombre o alias del centro
+        <input id="centerDisplayName" type="text" placeholder="Ej.: Centro educativo">
+      </label>
+      <label>Prefijo de código
+        <input id="codePrefixSetting" type="text" maxlength="6" placeholder="Ej.: ACP">
+        <span class="hint">Solo letras/números. No uses nombres, iniciales del alumnado ni datos identificativos.</span>
+      </label>
+      <label>Formato
+        <select id="codeFormatSetting">
+          <option value="01A">01A, 01B, 01C…</option>
+          <option value="A001">A001, A002, A003…</option>
+          <option value="ACP001">ACP001, ACP002…</option>
+        </select>
+      </label>
+      <label>Nota institucional local
+        <textarea id="centerLocalNote" placeholder="Ej.: Herramienta autorizada para uso interno según las instrucciones del centro."></textarea>
+      </label>
+      <div class="actions"><button id="saveCenterCustomizeBtn" type="button">Guardar</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="centerDocsDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="modal-head"><h2>Documentos del centro</h2><button value="cancel" class="icon-close" aria-label="Cerrar">×</button></div>
+      <p>Guarda aquí protocolos, instrucciones o documentos institucionales <strong>sin datos personales del alumnado</strong>.</p>
+      <label class="file-drop"><strong>Añadir documento local</strong>
+        <input id="centerDocFile" type="file" accept=".pdf,.txt,.md,.doc,.docx,.odt,.rtf">
+      </label>
+      <div id="centerDocsList"></div>
+      <p class="hint">Los documentos permanecen en este dispositivo y consumen espacio local. No se sincronizan.</p>
+    </form>
+  </dialog>
 
   <dialog id="quickHelpDialog">
     <form method="dialog" class="dialog-card compact-help">

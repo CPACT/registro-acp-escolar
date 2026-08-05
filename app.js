@@ -1,6 +1,6 @@
 
 "use strict";
-const DB_NAME="registro_acp_escolar_db", DB_VERSION=1, STORE="registros";
+const DB_NAME="registro_acp_escolar_db", DB_VERSION=2, STORE="registros", DOC_STORE="documentosCentro";
 const PREF="registro_acp_escolar_prefs";
 let db=null, currentEditId=null, pendingReviewAction=null, listMode="all", unlocked=false;
 let deferredInstallPrompt=null;
@@ -24,7 +24,7 @@ participacion:"¿Se favoreció su participación?",demandaAjustada:"¿Se ajustó
 };
 
 function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
-function prefs(){try{return {...{accepted:false,retention:"30",rememberRecipient:false,recipient:"",pinEnabled:false,pinHash:"",pinSalt:""},...JSON.parse(localStorage.getItem(PREF)||"{}")}}catch{return {accepted:false}}}
+function prefs(){try{return {...{accepted:false,retention:"30",rememberRecipient:false,recipient:"",pinEnabled:false,pinHash:"",pinSalt:"",codeFormat:"01A",codePrefix:"",centerDisplayName:"",centerLocalNote:""},...JSON.parse(localStorage.getItem(PREF)||"{}")}}catch{return {accepted:false}}}
 function savePrefs(p){localStorage.setItem(PREF,JSON.stringify({...prefs(),...p}))}
 function toast(msg){const t=document.querySelector("#toast");t.textContent=msg;t.classList.remove("hidden");setTimeout(()=>t.classList.add("hidden"),2600)}
 function nowLocal(){const d=new Date(),z=n=>String(n).padStart(2,"0");return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`}
@@ -45,7 +45,7 @@ function inclusionFields(data={}){
  return INCLUSION.map(k=>`<label>${INCLUSION_LABELS[k]}<select name="inc_${k}"><option value="">Selecciona</option>${["Sí","Parcial","No","No aplica"].map(v=>`<option ${data[k]===v?"selected":""}>${v}</option>`).join("")}</select></label>`).join("");
 }
 async function openDB(){
- return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(STORE)){const s=d.createObjectStore(STORE,{keyPath:"id"});s.createIndex("fechaHora","fechaHora");s.createIndex("codigo","codigo");s.createIndex("riesgo","riesgo")}};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})
+ return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(STORE)){const s=d.createObjectStore(STORE,{keyPath:"id"});s.createIndex("fechaHora","fechaHora");s.createIndex("codigo","codigo");s.createIndex("riesgo","riesgo")}if(!d.objectStoreNames.contains(DOC_STORE)){d.createObjectStore(DOC_STORE,{keyPath:"id"})}};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})
 }
 async function putRecord(rec){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).put(rec);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
 async function getRecord(id){return new Promise((res,rej)=>{const r=db.transaction(STORE).objectStore(STORE).get(id);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
@@ -55,24 +55,42 @@ async function clearRecords(){return new Promise((res,rej)=>{const tx=db.transac
 
 
 
+
+function browserInstallInfo(){
+  const ua=navigator.userAgent||"";
+  const ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  const android=/Android/i.test(ua);
+  const crios=/CriOS/i.test(ua);
+  const firefoxIOS=/FxiOS/i.test(ua);
+  const edgeIOS=/EdgiOS/i.test(ua);
+  const safari=ios && /Safari/i.test(ua) && !crios && !firefoxIOS && !edgeIOS;
+  return {ios,android,crios,safari};
+}
+function openInstallHelp(){
+  const b=browserInstallInfo();
+  if(b.ios && b.crios){
+    quickHelp("Añadir al iPhone",`<div class="install-steps"><b>1</b><span>Pulsa <strong>Compartir</strong> en Chrome.</span><b>2</b><span>Elige <strong>Añadir a pantalla de inicio</strong>.</span><b>3</b><span>Pulsa <strong>Añadir</strong>.</span></div><p class="hint">Después se abrirá desde su propio icono.</p>`);
+  }else if(b.ios){
+    quickHelp("Añadir al iPhone",`<div class="install-steps"><b>1</b><span>Pulsa <strong>Compartir</strong>.</span><b>2</b><span>Elige <strong>Añadir a pantalla de inicio</strong>.</span><b>3</b><span>Pulsa <strong>Añadir</strong>.</span></div><p class="hint">Después se abrirá desde su propio icono.</p>`);
+  }else{
+    quickHelp("Instalar app",`<p>Usa <strong>Instalar app</strong> o la opción de instalación del menú de tu navegador.</p>`);
+  }
+}
+
 function refreshInstallUI(){
-  const info=platformInfo();
-  const homeBtn=document.querySelector("#homeInstallBtn");
+  const info=platformInfo(), b=browserInstallInfo();
   const headerBtn=document.querySelector("#headerInstallBtn");
+  const homeBtn=document.querySelector("#homeInstallBtn");
   const card=homeBtn?.closest(".install-card");
   if(info.standalone){
-    if(card) card.classList.add("hidden");
-    if(headerBtn) headerBtn.classList.add("hidden");
+    headerBtn?.classList.add("hidden");
+    card?.classList.add("hidden");
   }else{
-    if(card) card.classList.remove("hidden");
-    if(headerBtn){
-      headerBtn.classList.remove("hidden");
-      headerBtn.textContent=info.isIOS?"Instalar en iPhone":"Instalar app";
-    }
-    if(homeBtn){
-      homeBtn.disabled=false;
-      homeBtn.textContent=info.isIOS?"Cómo instalar":"Instalar app";
-    }
+    headerBtn?.classList.remove("hidden");
+    card?.classList.remove("hidden");
+    const label=b.ios?"Añadir al iPhone":"Instalar app";
+    if(headerBtn) headerBtn.textContent=label;
+    if(homeBtn) homeBtn.textContent=label;
   }
 }
 
@@ -122,9 +140,102 @@ function helpButton(title,html,label="Ayuda"){
   return `<button type="button" class="help-dot" aria-label="${esc(label)}" title="${esc(label)}" data-help-title="${esc(title)}" data-help-body="${encodeURIComponent(html)}">?</button>`;
 }
 function bindHelpButtons(root=document){
-  root.querySelectorAll("[data-help-title]").forEach(b=>b.addEventListener("click",()=>{
-    quickHelp(b.dataset.helpTitle,decodeURIComponent(b.dataset.helpBody||""));
-  }));
+  if(!root || typeof root.querySelectorAll!=="function") return;
+  root.querySelectorAll("[data-help-title]").forEach(b=>{
+    if(b.dataset.helpBound==="1") return;
+    b.dataset.helpBound="1";
+    b.addEventListener("click",()=>{
+      let body=b.dataset.helpBody||"";
+      try{body=decodeURIComponent(body)}catch{}
+      quickHelp(b.dataset.helpTitle||"Ayuda",body);
+    });
+  });
+}
+
+
+function normalizePrefix(v){
+  return String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
+}
+function indexToLetters(n){
+  let s=""; n=Math.max(0,n);
+  do{s=String.fromCharCode(65+(n%26))+s;n=Math.floor(n/26)-1}while(n>=0);
+  return s;
+}
+function nextMaskedCode(existing=[]){
+  const p=prefs(), fmt=p.codeFormat||"01A", prefix=normalizePrefix(p.codePrefix||"");
+  const used=new Set(existing.map(x=>String(x).toUpperCase()));
+  for(let i=0;i<10000;i++){
+    let base="";
+    if(fmt==="A001") base=`${indexToLetters(Math.floor(i/999))}${String((i%999)+1).padStart(3,"0")}`;
+    else if(fmt==="ACP001") base=`${prefix||"ACP"}${String(i+1).padStart(3,"0")}`;
+    else base=`${String(Math.floor(i/26)+1).padStart(2,"0")}${indexToLetters(i%26)}`;
+    const code=(fmt==="ACP001"?base:(prefix?`${prefix}-${base}`:base));
+    if(!used.has(code.toUpperCase())) return code;
+  }
+  return `${prefix||"ACP"}-${Date.now().toString().slice(-6)}`;
+}
+async function usedCodes(){
+  const rs=await allRecords();
+  return [...new Set(rs.map(r=>r.codigo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+}
+async function openCodeManager(targetInput){
+  const d=document.querySelector("#codeManagerDialog");
+  const sel=document.querySelector("#existingCodeSelect"), prev=document.querySelector("#newCodePreview");
+  const codes=await usedCodes();
+  sel.innerHTML='<option value="">Seleccionar…</option>'+codes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  prev.value=nextMaskedCode(codes);
+  d.dataset.targetName=targetInput?.name||"codigo";
+  d.showModal();
+}
+function currentCodeTarget(){
+  const d=document.querySelector("#codeManagerDialog");
+  const name=d?.dataset.targetName||"codigo";
+  return document.querySelector(`[name="${CSS.escape(name)}"]`);
+}
+function probableIdentifiers(text){
+  const t=String(text||"").trim(); if(!t)return [];
+  const hits=[];
+  if(/\b\d{8}[A-HJ-NP-TV-Z]\b/i.test(t)) hits.push("posible DNI/NIE");
+  if(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(t)) hits.push("email");
+  if(/(?:\+34[\s.-]?)?(?:[6789]\d{2}[\s.-]?\d{3}[\s.-]?\d{3})\b/.test(t.replace(/\s+/g," "))) hits.push("teléfono");
+  if(/\b(?:calle|c\/|avenida|av\.?|plaza|paseo)\s+[A-ZÁÉÍÓÚÑ][\p{L}ÁÉÍÓÚÑáéíóúñ-]+/iu.test(t)) hits.push("dirección");
+  // Conservative name heuristic: two adjacent capitalized words, excluding sentence/common educational terms.
+  const common=new Set(["Registro","Conducta","Antecedente","Consecuencia","Apoyo","Apoyos","Aula","Educación","Física","Sí","No","Parcialmente","Otro","Otra","Centro","Madrid","ACP"]);
+  const re=/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñü-]{2,})\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñü-]{2,})\b/g;
+  let m; while((m=re.exec(t))){if(!common.has(m[1])&&!common.has(m[2])){hits.push(`posible nombre propio: ${m[1]} ${m[2]}`);break}}
+  return [...new Set(hits)];
+}
+function attachPrivacyScanner(root=document){
+  if(!root)return;
+  root.querySelectorAll("textarea,input[type=text]").forEach(el=>{
+    if(el.name==="codigo"||el.readOnly||el.dataset.noScan==="1") return;
+    let box=el.parentElement?.querySelector(".privacy-scan");
+    if(!box){box=document.createElement("div");box.className="privacy-scan hidden";box.setAttribute("role","alert");el.insertAdjacentElement("afterend",box)}
+    const scan=()=>{const hits=probableIdentifiers(el.value);if(hits.length){box.classList.remove("hidden");box.innerHTML=`⚠ Revisa: ${esc(hits.join(", "))}. Puede ser correcto, pero evita datos identificativos innecesarios.`;el.classList.add("privacy-flag")}else{box.classList.add("hidden");box.textContent="";el.classList.remove("privacy-flag")}};
+    el.addEventListener("input",scan);scan();
+  });
+}
+async function putCenterDoc(file){
+  const max=5*1024*1024;if(file.size>max)throw new Error("TOO_LARGE");
+  const data=await file.arrayBuffer();
+  const doc={id:uid(),name:file.name,type:file.type||"application/octet-stream",size:file.size,createdAt:new Date().toISOString(),data};
+  return new Promise((res,rej)=>{const tx=db.transaction(DOC_STORE,"readwrite");tx.objectStore(DOC_STORE).put(doc);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})
+}
+async function allCenterDocs(){
+  return new Promise((res,rej)=>{const r=db.transaction(DOC_STORE).objectStore(DOC_STORE).getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)})
+}
+async function deleteCenterDoc(id){
+  return new Promise((res,rej)=>{const tx=db.transaction(DOC_STORE,"readwrite");tx.objectStore(DOC_STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})
+}
+async function openCenterDoc(doc){
+  const blob=new Blob([doc.data],{type:doc.type});const url=URL.createObjectURL(blob);window.open(url,"_blank");setTimeout(()=>URL.revokeObjectURL(url),30000)
+}
+async function renderCenterDocs(){
+  const list=document.querySelector("#centerDocsList");if(!list)return;
+  const docs=await allCenterDocs();
+  list.innerHTML=docs.length?docs.map(d=>`<div class="doc-row"><div><strong>${esc(d.name)}</strong><small>${Math.round(d.size/1024)} KB</small></div><div><button type="button" class="secondary small" data-open-doc="${esc(d.id)}">Abrir</button><button type="button" class="danger small" data-del-doc="${esc(d.id)}">Eliminar</button></div></div>`).join(""):'<p class="hint">No hay documentos locales.</p>';
+  list.querySelectorAll("[data-open-doc]").forEach(b=>b.onclick=async()=>{const docs=await allCenterDocs();const d=docs.find(x=>x.id===b.dataset.openDoc);if(d)openCenterDoc(d)});
+  list.querySelectorAll("[data-del-doc]").forEach(b=>b.onclick=async()=>{if(confirm("¿Eliminar este documento local?")){await deleteCenterDoc(b.dataset.delDoc);renderCenterDocs()}});
 }
 
 function show(id){
@@ -157,22 +268,22 @@ function renderConsent(){
 }
 async function renderHome(){
  const rs=await allRecords(), old=oldCount(rs); const note=old?`<div class="warning"><strong>Revisión de datos:</strong> Existen ${old} registro(s) antiguos en este dispositivo. Revisa si sigue siendo necesario conservarlos.</div>`:"";
- document.querySelector("#screen-home").innerHTML=`<div class="card hero"><div class="hero-copy"><span class="app-kicker">ACP · Registro educativo</span><span class="version-chip">V8</span><h2>Registrar · Revisar · Apoyar</h2><p>Registro rápido y revisión de patrones.</p><span class="privacy-pill">Datos locales</span></div>
- <div class="disclaimer"><p><strong>Registro ACP para uso educativo.</strong></p>
+ document.querySelector("#screen-home").innerHTML=`<div class="card hero"><div class="hero-copy"><span class="app-kicker">ACP · Registro educativo</span><span class="version-chip">V12</span><h2>Registrar · Revisar · Apoyar</h2><p>Registra y revisa.</p><span class="privacy-pill">Datos en este dispositivo</span></div>
+ <div class="disclaimer"><p><strong>Uso educativo.</strong></p>
  </div>${note}</div>
- <div class="install-card"><div class="install-icon">⬇</div><div><h3>Instalar esta app</h3><p>Acceso rápido desde tu dispositivo.</p></div><button id="homeInstallBtn" class="secondary">Instalar app</button></div>
- <div class="local-badge">● Datos locales</div>
+ <div class="install-card"><div class="install-icon">⬇</div><div><h3>Instalar esta app</h3><p>Abrir como app.</p></div><button id="homeInstallBtn" class="secondary">Instalar app</button></div>
+ <div class="local-badge">● Datos en este dispositivo</div>
  <div style="height:.75rem"></div>
  <div class="grid-buttons">
  ${[
- ["Nuevo registro","Nuevo registro","form"],["Importar CSV","Cargar registros desde un archivo","importcsv"],["Registro rápido","Registrar lo esencial en una sola pantalla","quick"],["Registros de hoy","Ver registros de hoy","today"],["Todos los registros","Buscar y gestionar","all"],["Informe / Exportar","PDF, CSV o preparación de correo","report"],["Estadísticas","Ver patrones","stats"],["Ayuda","Ayuda breve","help"],["Privacidad y datos","Datos y privacidad","privacy"],["Acerca de / Licencia / Uso ético","Autoría, licencia y limitaciones","about"],["Configuración","Seguridad y revisión","settings"]
+ ["Nuevo registro","Nuevo registro","form"],["Importar CSV","Importar registros desde un archivo","importcsv"],["Registro rápido","Registrar lo esencial en una sola pantalla","quick"],["Registros de hoy","Ver registros de hoy","today"],["Todos los registros","Buscar y editar","all"],["Informe / Exportar","PDF, CSV o preparación de correo","report"],["Estadísticas","Estadísticas","stats"],["Ayuda","Ayuda","help"],["Privacidad y datos","Privacidad","privacy"],["Acerca de / Licencia / Uso ético","Autoría, licencia y limitaciones","about"],["Configuración","Configuración","settings"]
  ].map(([a,b,c])=>`<button data-nav="${c}"><strong>${a}</strong><span>${b}</span></button>`).join("")}</div>
  <div class="card"><h2>Cómo usarla en 60 segundos</h2><div class="flow">${["Observar","↓","Registrar hechos","↓","Revisar patrones","↓","Formular hipótesis","↓","Planificar apoyos","↓","Revisar en equipo"].map(x=>x==="↓"?"<b>↓</b>":`<span>${x}</span>`).join("")}</div></div>`;
  document.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>navigate(b.dataset.nav));
- document.querySelector("#homeInstallBtn")?.addEventListener("click",()=>{if(deferredInstallPrompt)triggerInstall();else openInstallDialog();});
+ document.querySelector("#homeInstallBtn")?.addEventListener("click",()=>{const b=browserInstallInfo();if(b.ios)openInstallHelp();else if(deferredInstallPrompt)triggerInstall();else openInstallHelp();});
  refreshInstallUI();
  document.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
- document.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo usarla",`<div class="mini-flow"><b>1</b><span>Observar</span><b>2</b><span>Registrar hechos</span><b>3</b><span>Revisar patrones</span><b>4</b><span>Plantear hipótesis</span><b>5</b><span>Planificar apoyos</span><b>6</b><span>Revisar en equipo</span></div><p class="hint">Describe hechos observables. Las hipótesis son provisionales y no son diagnósticos.</p>`));
+ document.querySelector("#howUseBtn")?.addEventListener("click",()=>quickHelp("Cómo usarla en 60 segundos",`<div class="install-steps"><b>1</b><span><strong>Observa</strong> qué ocurre.</span><b>2</b><span><strong>Registra</strong> hechos, no interpretaciones.</span><b>3</b><span><strong>Revisa</strong> varios registros para buscar patrones.</span><b>4</b><span><strong>Plantea apoyos</strong> y revísalos en equipo.</span></div><p class="hint">Una hipótesis es provisional: no es un diagnóstico.</p>`));
  document.querySelector("#globalHelpBtn")?.addEventListener("click",()=>quickHelp("Ayuda rápida",`<div class="help-menu"><p><b>Nuevo registro</b><br><span>Anota hechos observables.</span></p><p><b>Registros</b><br><span>Consulta, edita o duplica.</span></p><p><b>Patrones</b><br><span>Revisa tendencias, no diagnósticos.</span></p><p><b>Importar CSV</b><br><span>Trae registros de otro dispositivo.</span></p><p><b>Exportar</b><br><span>Genera PDF o CSV localmente.</span></p></div>`));
  bindHelpButtons(document.querySelector("#home"));
 }
@@ -181,7 +292,10 @@ function formTemplate(d={}){
  return `<form id="recordForm">
  <div class="card"><div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2>${currentEditId?"":'<button type="button" class="secondary small" id="importFromForm">Importar CSV</button>'}</div><p class="hint">Usa un código pseudónimo.</p>
  <div class="two"><label class="required">Fecha y hora<input name="fechaHora" type="datetime-local" required value="${esc(d.fechaHora||nowLocal())}"></label>
- <label class="required">Código pseudónimo del alumnado<input name="codigo" required value="${esc(d.codigo||"")}"><span class="hint">Código interno, no nombre real.</span></label>
+ <label class="required">Código pseudónimo
+  <div class="code-row"><input name="codigo" required readonly aria-readonly="true" value="${esc(d.codigo||"")}"><button type="button" class="secondary code-pick" id="chooseCodeBtn">Elegir / crear</button></div>
+  <span class="hint">No uses nombre, iniciales ni datos personales.</span>
+</label>
  <label>Curso / grupo<input name="grupo" value="${esc(d.grupo||"")}"></label><label>Profesional que registra (iniciales o alias)<input name="profesional" value="${esc(d.profesional||"")}"></label></div></div>
  <div class="card"><h3>Contexto escolar <button type="button" class="help-dot" data-help-title="Contexto escolar" data-help-body="Selecciona dónde ocurrió la situación. Puedes marcar varias opciones.">?</button></h3>${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
  <div class="card"><h3>Factores del entorno ${helpButton("Factores del entorno","Marca condiciones que pudieron influir: ruido, espera, cambios, comunicación, descanso, etc. No se usan para inferir diagnósticos.")}</h3>${chips("factores",OPT.factores,d.factores||[],"factoresOtro",d.factoresOtro||"")}
@@ -223,7 +337,7 @@ function recordFromForm(form,base={}){
 }
 async function renderForm(data=null){
  currentEditId=data?.id||null;document.querySelector("#screen-form").innerHTML=formTemplate(data||{});bindSpec(document.querySelector("#screen-form"));
- const f=document.querySelector("#recordForm");document.querySelector("#importFromForm")?.addEventListener("click",openImportDialog);bindHelpButtons(document.querySelector("#recordForm"));document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
+ const f=document.querySelector("#recordForm");document.querySelector("#chooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);document.querySelector("#importFromForm")?.addEventListener("click",openImportDialog);bindHelpButtons(document.querySelector("#recordForm"));document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
  document.querySelector("#riskSelect").onchange=e=>document.querySelector("#highRisk").classList.toggle("hidden",e.target.value!=="alto");
  document.querySelectorAll("[data-help=ante]").forEach(b=>b.onclick=()=>alert("Registra lo que ocurrió inmediatamente antes utilizando hechos observables y evitando interpretar intenciones."));
  let start=0,tick=null;const disp=document.querySelector("#timerDisplay");
@@ -232,7 +346,7 @@ async function renderForm(data=null){
  f.onsubmit=async e=>{e.preventDefault();const base=currentEditId?await getRecord(currentEditId):{};const rec=recordFromForm(f,base);await putRecord(rec);currentEditId=null;toast("Registro guardado");await renderList("all");show("list")}
 }
 function quickTemplate(d={}){
- return `<form id="quickForm"><div class="card"><h2>Registro rápido</h2><div class="two"><label class="required">Código pseudónimo<input name="codigo" required value="${esc(d.codigo||"")}"></label><label>Fecha y hora<input type="datetime-local" name="fechaHora" value="${esc(d.fechaHora||nowLocal())}"></label></div>
+ return `<form id="quickForm"><div class="card"><h2>Registro rápido</h2><div class="two"><label class="required">Código pseudónimo<div class="code-row"><input name="codigo" required readonly value="${esc(d.codigo||"")}"><button type="button" id="quickChooseCodeBtn" class="secondary">Elegir / crear</button></div></label><label>Fecha y hora<input type="datetime-local" name="fechaHora" value="${esc(d.fechaHora||nowLocal())}"></label></div>
  <h3>Contexto</h3>${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}<h3>Antecedente</h3>${chips("antecedente",OPT.antecedente,d.antecedente||[],"antecedenteOtro",d.antecedenteOtro||"")}
  <h3>Conducta</h3>${chips("conducta",OPT.conducta,d.conducta||[],"conductaOtro",d.conductaOtro||"")}<label class="required">Descripción objetiva breve<textarea name="conductaDesc" required>${esc(d.conductaDesc||"")}</textarea></label>
  <h3>Consecuencia ${helpButton("Consecuencia","¿Qué ocurrió inmediatamente después? No significa premio, castigo ni causa.")}</h3>${chips("consecuencia",OPT.consecuencia,d.consecuencia||[],"consecuenciaOtro",d.consecuenciaOtro||"")}
@@ -244,7 +358,7 @@ function quickToRecord(form){
  antecedente:arrayVal(fd,"antecedente"),antecedenteOtro:one(fd,"antecedenteOtro"),antecedenteDesc:"",conducta:arrayVal(fd,"conducta"),conductaOtro:one(fd,"conductaOtro"),conductaDesc:one(fd,"conductaDesc"),duracionValor:0,duracionUnidad:"segundos",frecuencia:1,intensidad:Number(one(fd,"intensidad")),riesgo:one(fd,"riesgo"),consecuencia:arrayVal(fd,"consecuencia"),consecuenciaOtro:one(fd,"consecuenciaOtro"),consecuenciaDesc:"",hipotesis:[],hipotesisOtro:"",apoyos:[],apoyosOtro:"",apoyoValoracion:"",proxima:[],proximaOtro:"",proximaTexto:"",inclusion:{},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),demo:false,quick:true}
 }
 function renderQuick(){
- document.querySelector("#screen-quick").innerHTML=quickTemplate();bindSpec(document.querySelector("#screen-quick"));const f=document.querySelector("#quickForm");
+ document.querySelector("#screen-quick").innerHTML=quickTemplate();bindSpec(document.querySelector("#screen-quick"));const f=document.querySelector("#quickForm");document.querySelector("#quickChooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);
  document.querySelector("#quickCancel").onclick=()=>{renderHome();show("home")};
  f.onsubmit=async e=>{e.preventDefault();const r=quickToRecord(f);await putRecord(r);toast("Guardado");renderList("today");show("list")};
  document.querySelector("#quickComplete").onclick=async()=>{if(!f.reportValidity())return;const r=quickToRecord(f);currentEditId=null;await renderForm(r);show("form")}
@@ -507,7 +621,7 @@ async function renderStats(){
  const rs=await allRecords();const counts=(field)=>{const m={};for(const r of rs){const vals=Array.isArray(r[field])?r[field]:[r[field]];for(const v of vals.filter(Boolean))m[v]=(m[v]||0)+1}return m};const blocks=(title,m)=>{const arr=Object.entries(m).sort((a,b)=>b[1]-a[1]),max=arr[0]?.[1]||1;return `<div class=stat><h3>${title}</h3>${arr.length?arr.slice(0,10).map(([k,v])=>`<p>${esc(k)} — ${v}</p><div class=bar><i style="width:${v/max*100}%"></i></div>`).join(""):"<p>Sin datos.</p>"}</div>`};
  const dur=rs.filter(r=>r.duracionValor>0).map(r=>r.duracionUnidad==="minutos"?r.duracionValor*60:r.duracionValor),avg=dur.length?Math.round(dur.reduce((a,b)=>a+b,0)/dur.length):0;
  const help=rs.filter(r=>r.apoyoValoracion),yes=help.filter(r=>r.apoyoValoracion==="Sí").length,part=help.filter(r=>r.apoyoValoracion==="Parcialmente").length;
- document.querySelector("#screen-stats").innerHTML=`<div class=card><h2>Estadísticas locales</h2><p>Calculadas exclusivamente a partir de los registros almacenados en este dispositivo.</p><div class=warning>Las correlaciones o frecuencias observadas no demuestran la función de una conducta.</div></div>
+ document.querySelector("#screen-stats").innerHTML=`<div class=card><h2>Patrones descriptivos</h2><p>Calculadas exclusivamente a partir de los registros almacenados en este dispositivo.</p><div class=warning>Las correlaciones o frecuencias observadas no demuestran la función de una conducta.</div></div>
  <div class=stat-grid>${blocks("Frecuencia por contexto",counts("contexto"))}${blocks("Conductas más registradas",counts("conducta"))}${blocks("Antecedentes más frecuentes",counts("antecedente"))}${blocks("Consecuencias más frecuentes",counts("consecuencia"))}${blocks("Distribución de intensidad",counts("intensidad"))}${blocks("Distribución de riesgos",counts("riesgo"))}${blocks("Distribución de hipótesis",counts("hipotesis"))}${blocks("Apoyos más utilizados",counts("apoyos"))}
  <div class=stat><h3>Duración media</h3><p><strong>${avg} segundos</strong></p></div><div class=stat><h3>“Pareció ayudar”</h3><p>Sí: ${help.length?Math.round(yes/help.length*100):0}% · Sí o parcialmente: ${help.length?Math.round((yes+part)/help.length*100):0}%</p><p class=hint>No demuestra causalidad.</p></div></div>`;
 }
@@ -528,19 +642,35 @@ function renderAbout(){
  document.querySelector("#screen-about").innerHTML=`<div class=card><h2>Acerca de / Licencia / Uso ético</h2><h3>Autoría</h3><p><strong>Autor: Carlos Tejero</strong></p><p>Proyecto desarrollado por Carlos Tejero con apoyo de ChatGPT para la ideación, estructuración y desarrollo técnico.</p><p>Carlos Tejero es el autor. ChatGPT es una herramienta de apoyo. ChatGPT no es autor ni titular de los derechos de la obra.</p>
  <h3>Finalidad</h3><p>Herramienta educativa de observación y registro dentro de procesos de Apoyo Conductual Positivo, centrada en prevención, comprensión funcional, dignidad, participación y apoyos. No es una herramienta diagnóstica.</p>
  <h3>Privacidad y uso responsable</h3><p>La persona usuaria es responsable de los datos que introduce, de la legitimidad de su tratamiento, de su confidencialidad, conservación, exportación, envío y eliminación, así como del cumplimiento de la normativa aplicable y de los protocolos de su centro o entidad.</p><p>El autor de la aplicación no recibe, supervisa ni controla los registros almacenados localmente.</p><p>La utilización de esta herramienta no exime a la persona usuaria de sus obligaciones profesionales, éticas, legales o institucionales.</p><p>La persona usuaria y, cuando corresponda, el centro o entidad responsable determinan la legitimidad y condiciones del tratamiento de los datos.</p>
- <h3>Licencia</h3><p><strong>Creative Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional — CC BY-NC-SA 4.0.</strong></p><p>Puedes copiar, compartir y adaptar esta obra siempre que reconozcas adecuadamente la autoría, no la utilices con fines comerciales y compartas cualquier obra derivada bajo la misma licencia.</p><p>Atribución: “Tejero, Carlos. Registro ACP Escolar. Licencia CC BY-NC-SA 4.0.”</p><p><a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es" target="_blank" rel="noopener">Enlace oficial de la licencia</a></p>
+ <h3>Licencia</h3><p><strong>Creative Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional — CC BY-NC-SA 4.0.</strong></p><p>Puedes usar, copiar, compartir y modificar esta obra. Si publicas una versión modificada, debes reconocer la autoría original, mantener la misma licencia y respetar sus condiciones.</p><p>Atribución: “Tejero, Carlos. Registro ACP Escolar. Licencia CC BY-NC-SA 4.0.”</p><p><a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es" target="_blank" rel="noopener">Enlace oficial de la licencia</a></p>
  <h3>Limitaciones</h3><p>No sustituye evaluación psicológica, médica, psiquiátrica, pedagógica ni profesional, ni protocolos de centro, protección, seguridad o emergencia. Tampoco sustituye la decisión del responsable del tratamiento sobre qué herramientas pueden utilizarse en el contexto escolar.</p></div>`
 }
 async function renderSettings(){
  const p=prefs();document.querySelector("#screen-settings").innerHTML=`<div class=card><h2>Configuración</h2>
  <h3>Protección mediante PIN local</h3><p>Este PIN protege el acceso dentro de la aplicación, pero no sustituye las medidas de seguridad del dispositivo.</p><p>Si olvidas el PIN podría no ser posible acceder a los registros almacenados.</p><p><strong>El PIN limita el acceso mediante la interfaz de la aplicación, pero no constituye por sí mismo cifrado completo del almacenamiento del dispositivo.</strong></p>
  <p>Estado: <strong>${p.pinEnabled?"Activado":"Desactivado"}</strong></p><div class=actions>${p.pinEnabled?'<button id=changePin>Cambiar PIN</button><button id=disablePin class=secondary>Desactivar PIN</button>':'<button id=enablePin>Activar PIN</button>'}</div>
- <h3>Recordatorio de revisión de datos</h3><label>Revisar registros con antigüedad superior a<select id=retention><option value=7 ${p.retention==="7"?"selected":""}>7 días</option><option value=30 ${p.retention==="30"?"selected":""}>30 días</option><option value=90 ${p.retention==="90"?"selected":""}>90 días</option><option value=manual ${p.retention==="manual"?"selected":""}>Manual</option></select></label><p class=hint>No se borra ningún registro automáticamente.</p>
- <h3>Datos DEMO</h3><div class=actions><button id=addDemo class=secondary>Añadir datos DEMO</button></div>
+ <h3>Recordatorio de revisión de datos</h3><label>Revisar registros con antigüedad superior a<select id=retention><option value=7 ${p.retention==="7"?"selected":""}>7 días</option><option value=30 ${p.retention==="30"?"selected":""}>30 días</option><option value=90 ${p.retention==="90"?"selected":""}>90 días</option><option value=manual ${p.retention==="manual"?"selected":""}>Manual</option></select></label><p class=hint>No se borra automáticamente. El centro debe definir y aplicar el plazo de conservación que corresponda.</p>
+ 
+ <h3>Centro / Personalización</h3>
+ <p class="hint">Personalización local. No se sincroniza.</p>
+ <div class="actions">
+   <button id="centerCustomizeBtn" class="secondary">Personalizar centro</button>
+   <button id="centerDocsBtn" class="secondary">Documentos del centro</button>
+ </div>
+ <h3>Uso institucional</h3>
+ <div class="compact-note"><strong>Privacidad desde el diseño.</strong> La autorización de uso corresponde al centro o Administración responsable. <button type="button" class="help-dot" id="dpdInfoBtn">?</button></div>
+<h3>Datos DEMO</h3><div class=actions><button id=addDemo class=secondary>Añadir datos DEMO</button></div>
  <h3>Borrado total</h3><button id=deleteAll class=danger>Borrar todos los datos</button></div>`;
  document.querySelector("#retention").onchange=e=>{savePrefs({retention:e.target.value});toast("Preferencia guardada")};
  if(!p.pinEnabled)document.querySelector("#enablePin").onclick=()=>setNewPin("activar");else{document.querySelector("#changePin").onclick=()=>setNewPin("cambiar");document.querySelector("#disablePin").onclick=async()=>{const pin=prompt("Introduce el PIN actual");if(pin===null)return;if(await hashPin(pin,p.pinSalt)!==p.pinHash)return alert("PIN incorrecto");savePrefs({pinEnabled:false,pinHash:"",pinSalt:""});unlocked=false;toast("PIN desactivado");renderSettings()}}
  document.querySelector("#addDemo").onclick=addDemo;
+ 
+ document.querySelector("#centerCustomizeBtn")?.addEventListener("click",()=>{
+   const p=prefs();document.querySelector("#centerDisplayName").value=p.centerDisplayName||"";document.querySelector("#codePrefixSetting").value=p.codePrefix||"";document.querySelector("#codeFormatSetting").value=p.codeFormat||"01A";document.querySelector("#centerLocalNote").value=p.centerLocalNote||"";document.querySelector("#centerCustomizeDialog").showModal();
+ });
+ document.querySelector("#centerDocsBtn")?.addEventListener("click",async()=>{await renderCenterDocs();document.querySelector("#centerDocsDialog").showModal()});
+ document.querySelector("#dpdInfoBtn")?.addEventListener("click",()=>quickHelp("Información para centro / DPD",`<div class="help-menu"><p><b>Almacenamiento</b><br><span>Registros y documentos institucionales se guardan localmente en el dispositivo.</span></p><p><b>Servidor</b><br><span>No existe base de datos central de registros ACP.</span></p><p><b>Identificación</b><br><span>Se utilizan códigos pseudónimos. La pseudonimización reduce riesgos, pero no convierte automáticamente los datos en anónimos.</span></p><p><b>Exportación</b><br><span>PDF/CSV se generan localmente y solo salen del dispositivo por acción del usuario.</span></p><p><b>Decisiones</b><br><span>No diagnostica, no perfila y no toma decisiones automatizadas.</span></p><p><b>Uso institucional</b><br><span>Debe ajustarse a las políticas, medidas de seguridad y herramientas autorizadas por el centro o Administración.</span></p></div>`));
+
  document.querySelector("#deleteAll").onclick=async()=>{if(!confirm("¿Quieres eliminar todos los registros almacenados en este dispositivo?"))return;if(!confirm("Esta acción no puede deshacerse. Confirmar borrado definitivo."))return;await clearRecords();toast("Todos los registros han sido eliminados")}
 }
 async function setNewPin(mode){
@@ -557,11 +687,11 @@ function oldCount(rs){const r=prefs().retention;if(r==="manual"||!r)return 0;con
 function renderMore(){
  document.querySelector("#screen-settings").innerHTML=`<div class="card"><span class="app-kicker">Más opciones</span><h2>Herramientas y configuración</h2>
  <div class="more-grid">
-  <button data-more="report"><strong>Informe / Exportar</strong><span>Exportar o compartir</span></button>
+  <button data-more="report"><strong>Informe / Exportar</strong><span>PDF, CSV y correo</span></button>
   <button data-more="quick"><strong>Registro rápido</strong><span>Registro rápido</span></button>
   <button data-more="help"><strong>Ayuda</strong><span>ABC, ACP y ejemplos</span></button>
   <button data-more="privacy"><strong>Privacidad y datos</strong><span>Arquitectura local-first</span></button>
-  <button data-more="about"><strong>Acerca de</strong><span>Autoría y licencia</span></button>
+  <button data-more="about"><strong>Acerca de</strong><span>Acerca de</span></button>
   <button data-more="settings"><strong>Configuración</strong><span>PIN y revisión de datos</span></button>
  </div></div>`;
  document.querySelectorAll("[data-more]").forEach(b=>b.onclick=async()=>{
@@ -580,8 +710,28 @@ document.addEventListener("DOMContentLoaded",async()=>{
  db=await openDB();
  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;});
  window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;toast("App instalada");refreshInstallUI();});
- document.querySelector("#headerInstallBtn")?.addEventListener("click",()=>{if(deferredInstallPrompt)triggerInstall();else openInstallDialog();});
+ document.querySelector("#headerInstallBtn")?.addEventListener("click",()=>{const b=browserInstallInfo();if(b.ios)openInstallHelp();else if(deferredInstallPrompt)triggerInstall();else openInstallHelp();});
+ document.querySelector("#floatingHelpBtn")?.addEventListener("click",()=>quickHelp("Ayuda rápida",`<div class="mini-flow"><b>1</b><span>Nuevo registro</span><b>2</b><span>Anota hechos observables</span><b>3</b><span>Revisa patrones</span><b>4</b><span>Planifica apoyos</span></div><p class="hint">Pulsa los símbolos ? para aclaraciones concretas.</p>`));
+ document.querySelector("#conceptHelpBtn")?.addEventListener("click",()=>quickHelp("Conceptos clave",`<div class="help-menu"><p><b>Antecedente</b><br><span>Qué ocurrió justo antes.</span></p><p><b>Conducta observada</b><br><span>Qué se vio u oyó.</span></p><p><b>Consecuencia</b><br><span>Qué ocurrió después.</span></p><p><b>Hipótesis funcional</b><br><span>Explicación provisional, no diagnóstico.</span></p></div>`));
  document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshInstallUI();});
+ 
+ document.querySelector("#useExistingCodeBtn")?.addEventListener("click",()=>{
+   const v=document.querySelector("#existingCodeSelect").value;if(!v)return toast("Selecciona un código");
+   const target=currentCodeTarget();if(target)target.value=v;document.querySelector("#codeManagerDialog").close();
+ });
+ document.querySelector("#createNewCodeBtn")?.addEventListener("click",async()=>{
+   const codes=await usedCodes(),code=nextMaskedCode(codes);const target=currentCodeTarget();if(target)target.value=code;document.querySelector("#codeManagerDialog").close();toast(`Código ${code} creado`);
+ });
+ document.querySelector("#saveCenterCustomizeBtn")?.addEventListener("click",()=>{
+   const prefix=normalizePrefix(document.querySelector("#codePrefixSetting").value);
+   savePrefs({centerDisplayName:document.querySelector("#centerDisplayName").value.trim(),codePrefix:prefix,codeFormat:document.querySelector("#codeFormatSetting").value,centerLocalNote:document.querySelector("#centerLocalNote").value.trim()});
+   document.querySelector("#centerCustomizeDialog").close();toast("Personalización guardada");
+ });
+ document.querySelector("#centerDocFile")?.addEventListener("change",async e=>{
+   const file=e.target.files?.[0];if(!file)return;
+   try{await putCenterDoc(file);toast("Documento guardado localmente");e.target.value="";renderCenterDocs()}catch(err){alert(err.message==="TOO_LARGE"?"Máximo 5 MB por documento.":"No se pudo guardar el documento.")}
+ });
+
  document.querySelector("#installNowBtn")?.addEventListener("click",e=>{e.preventDefault();triggerInstall();});
 
  let acpPendingImport=[];

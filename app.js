@@ -52,6 +52,44 @@ async function openDB(){
 }
 
 
+
+async function replaceExistingRecordExactly(existing,incoming){
+  if(!existing?.id)throw new Error("REPLACE_NO_EXISTING_ID");
+  const replacement={
+    ...incoming,
+    id:existing.id,
+    duplicado:false,
+    duplicadoDe:null,
+    createdAt:existing.createdAt||incoming.createdAt||new Date().toISOString(),
+    updatedAt:new Date().toISOString()
+  };
+
+  // Remove any accidental duplicate copy with a different id but same code + minute
+  const all=await allRecords();
+  const sameMinute=all.filter(r=>
+    r.id!==existing.id &&
+    String(r.codigo||"").trim()===String(existing.codigo||"").trim() &&
+    minuteKey(r.fechaHora)===minuteKey(existing.fechaHora)
+  );
+
+  for(const r of sameMinute){
+    await deleteRecord(r.id);
+  }
+
+  // Overwrite the canonical existing record.
+  await putRecord(replacement);
+
+  // Verify exactly one remains for that code+minute.
+  const verify=(await allRecords()).filter(r=>
+    String(r.codigo||"").trim()===String(replacement.codigo||"").trim() &&
+    minuteKey(r.fechaHora)===minuteKey(replacement.fechaHora)
+  );
+  if(verify.length!==1 || verify[0].id!==replacement.id){
+    throw new Error("REPLACE_VERIFY_FAILED");
+  }
+  return replacement;
+}
+
 async function resolveManualSaveConflict(record){
   const all=await allRecords();
   const match=all.find(r=>
@@ -59,29 +97,21 @@ async function resolveManualSaveConflict(record){
     String(r.codigo||"").trim()===String(record.codigo||"").trim() &&
     minuteKey(r.fechaHora)===minuteKey(record.fechaHora)
   );
-  if(!match)return {action:"save",record};
+  if(!match)return {action:"save",record,match:null};
 
   const action=await askCsvConflict(match,record,[]);
-  if(action==="cancel")return {action:"cancel",record:null};
+  if(action==="cancel")return {action:"cancel",record:null,match};
 
   if(action==="both"){
     const copy={...record,id:uid(),duplicado:true,duplicadoDe:match.id,updatedAt:new Date().toISOString()};
     copy.createdAt=copy.createdAt||copy.updatedAt;
-    return {action:"both",record:copy};
+    return {action:"both",record:copy,match};
   }
 
   if(action==="replace"){
-    const replacement={
-      ...record,
-      id:match.id,
-      duplicado:Boolean(match.duplicado),
-      duplicadoDe:match.duplicadoDe||null,
-      createdAt:match.createdAt||record.createdAt||new Date().toISOString(),
-      updatedAt:new Date().toISOString()
-    };
-    return {action:"replace",record:replacement};
+    return {action:"replace",record,match};
   }
-  return {action:"cancel",record:null};
+  return {action:"cancel",record:null,match};
 }
 
 async function finishSavedRecord(record){
@@ -91,10 +121,15 @@ async function finishSavedRecord(record){
     return false;
   }
 
-  const toSave=resolved.record;
-  await putRecord(toSave);
-  const saved=await getRecord(toSave.id);
-  if(!saved)throw new Error("SAVE_VERIFY_FAILED");
+  let saved;
+  if(resolved.action==="replace"){
+    saved=await replaceExistingRecordExactly(resolved.match,resolved.record);
+  }else{
+    const toSave=resolved.record;
+    await putRecord(toSave);
+    saved=await getRecord(toSave.id);
+    if(!saved)throw new Error("SAVE_VERIFY_FAILED");
+  }
 
   lastSavedRecordId=saved.id;
   currentEditId=null;
@@ -111,6 +146,7 @@ async function finishSavedRecord(record){
 
   await renderList("all");
   show("list");
+
   setTimeout(()=>{
     const item=document.querySelector(`#recordList [data-id="${CSS.escape(saved.id)}"]`);
     if(item){
@@ -119,6 +155,7 @@ async function finishSavedRecord(record){
       setTimeout(()=>item.classList.remove("just-saved"),2500);
     }
   },120);
+
   return true;
 }
 async function putRecord(rec){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).put(rec);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
@@ -1136,14 +1173,10 @@ async function importCsvRecordsWithConflictResolution(records){
     }
 
     if(action==="replace"){
-      incoming.id=match.id;
-      incoming.duplicado=Boolean(match.duplicado);
-      incoming.duplicadoDe=match.duplicadoDe||null;
-      incoming.createdAt=match.createdAt||incoming.createdAt||new Date().toISOString();
-      incoming.updatedAt=new Date().toISOString();
-      await putRecord(incoming);
-      const i=existing.findIndex(r=>r.id===match.id);
-      if(i>=0)existing[i]=incoming;
+      const replacement=await replaceExistingRecordExactly(match,incoming);
+      // Refresh the in-memory snapshot so later rows compare against the final state.
+      const fresh=await allRecords();
+      existing.splice(0,existing.length,...fresh);
       replaced++;
     }
   }

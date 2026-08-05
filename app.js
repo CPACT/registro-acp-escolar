@@ -3,6 +3,7 @@
 const DB_NAME="registro_acp_escolar_db", DB_VERSION=2, STORE="registros", DOC_STORE="documentosCentro";
 const PREF="registro_acp_escolar_prefs";
 let db=null, currentEditId=null, pendingReviewAction=null, listMode="all", unlocked=false;
+let lastSavedRecordId=null;
 let deferredInstallPrompt=null;
 const PWA_FLAG="registro_acp_pwa_instalada";
 
@@ -343,6 +344,27 @@ function bindCollapsibleFieldsets(root){
     });
   });
 }
+
+function ensureHypothesisOtherReveal(root){
+  if(!root)return;
+  const hip=root.querySelector('[data-section="hipotesis"]');
+  if(!hip)return;
+  const chipsBox=hip.querySelector(".chips");
+  const other=hip.querySelector('[name="hipotesisOtro"]');
+  if(chipsBox&&other&&!chipsBox.dataset.otherTarget){
+    chipsBox.dataset.otherTarget='[name="hipotesisOtro"]';
+  }
+  if(other){
+    const refresh=()=>{
+      const checked=[...hip.querySelectorAll('input[type="checkbox"],input[type="radio"]')].some(i=>i.checked&&/otro|otra/i.test(i.value||""));
+      other.classList.toggle("hidden",!checked);
+      if(!checked)other.value=other.value; // preserve typed text if toggled off/on
+    };
+    hip.addEventListener("change",refresh);
+    refresh();
+  }
+}
+
 function bindOtherReveal(root){
   if(!root)return;
   root.querySelectorAll("[data-other-target]").forEach(container=>{
@@ -413,7 +435,7 @@ function validateRequiredRecordFields(form){
 
 function show(id){
  document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
- const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el);bindScreenClose(el);bindCollapsibleFieldsets(el);bindOtherReveal(el)},0);setTimeout(()=>bindHelpButtons(el),0);
+ const el=document.querySelector(`#screen-${id}`);el.classList.remove("hidden");el.scrollIntoView({block:"start"});document.querySelector("#main").focus();setTimeout(()=>{bindHelpButtons(el);attachPrivacyScanner(el);bindScreenClose(el);bindCollapsibleFieldsets(el);bindOtherReveal(el);ensureHypothesisOtherReveal(el)},0);setTimeout(()=>bindHelpButtons(el),0);
   setTimeout(()=>ensureScreenClose(id),0);
 }
 function requirePin(next){
@@ -473,32 +495,15 @@ async function renderHome(){
       <div class="install-icon">＋</div>
       <div><section class="collapsible-field" data-section="hipotesis">
   <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Instalar app</h3><p>Acceso rápido desde este dispositivo.</p></div>
-      <button id="homeInstallBtn" class="secondary" type="button">Instalar app</button>
-    </div>`;
-
-  el.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>b.dataset.nav==="reports"?openReportsChooser():navigate(b.dataset.nav)));
-  el.querySelector("#homeReportsBtn")?.addEventListener("click",openReportsChooser);
-  el.querySelector("#homeCsvImportBtn")?.addEventListener("click",openImportDialog);
-  el.querySelector("#homeInstallBtn")?.addEventListener("click",openInstallHelp);
-  refreshInstallUI();bindHelpButtons(el);
-}
-function formTemplate(d={}){
- const inc=d.inclusion||{};
- return `<form id="recordForm">
- <div class="card screen-card">${screenCloseButton()}<div class="section-title-row"><h2>${currentEditId?"Editar registro":"Nuevo registro"}</h2>${currentEditId?"":''}</div><p class="hint">Usa un código pseudónimo.</p>
- <div class="two"><label class="required">Fecha y hora<input name="fechaHora" type="datetime-local" required value="${esc(d.fechaHora||nowLocal())}"></label>
- <label class="required">Código pseudónimo
-  <div class="code-row"><input name="codigo" required readonly aria-readonly="true" value="${esc(d.codigo||"")}"><button type="button" class="secondary code-pick" id="chooseCodeBtn">Elegir / crear</button></div>
-  <span class="hint">No uses nombre, iniciales ni datos personales.</span>
-</label>
- <label>Curso / grupo<input name="grupo" value="${esc(d.grupo||"")}"></label><label>Profesional que registra (iniciales o alias)<input name="profesional" value="${esc(d.profesional||"")}"></label></div></div>
- <div class="card"><section class="collapsible-field" data-section="contexto">
-  <button type="button" class="collapsible-head" aria-expanded="false">
-    <span><h3>Contexto escolar <button type="button" class="help-dot" data-help-title="Contexto escolar" data-help-body="Selecciona dónde ocurrió la situación. Puedes marcar varias opciones.">?</button></h3></span><i>⌄</i>
+    <span><h3>Hipótesis funcional provisional</h3></span><i>⌄</i>
   </button>
-  <div class="collapsible-body">${chips("contexto",OPT.contexto,d.contexto||[],"contextoOtro",d.contextoOtro||"")}</div>
- <div class="card"></div>
+  <div class="collapsible-body">
+    <div class="section-help-line">
+      <span>Explicación provisional, no diagnóstico</span>
+      ${helpButton("Hipótesis, no diagnóstico","Selecciona una o varias hipótesis provisionales. Deben revisarse con varios registros y en equipo.")}
+    </div>
+    ${chips("hipotesis",OPT.hipotesis,d.hipotesis||[],"hipotesisOtro",d.hipotesisOtro||"")}
+  </div>
 </section><section class="collapsible-field" data-section="factores">
   <button type="button" class="collapsible-head" aria-expanded="false">
     <span><h3>Factores del entorno ${helpButton("Factores del entorno","Marca condiciones que pudieron influir: ruido, espera, cambios, comunicación, descanso, etc. No se usan para inferir diagnósticos.")}</h3></span><i>⌄</i>
@@ -576,7 +581,7 @@ function recordFromForm(form,base={}){
 }
 async function renderForm(data=null){
  currentEditId=data?.id||null;document.querySelector("#screen-form").innerHTML=formTemplate(data||{});bindSpec(document.querySelector("#screen-form"));
- const f=document.querySelector("#recordForm");document.querySelector("#chooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);bindHelpButtons(document.querySelector("#recordForm"));document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
+ const f=document.querySelector("#recordForm");document.querySelector("#chooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);ensureHypothesisOtherReveal(f);bindHelpButtons(document.querySelector("#recordForm"));document.querySelector("#cancelForm").onclick=()=>{currentEditId=null;renderHome();show("home")};
  document.querySelector("#riskSelect").onchange=e=>document.querySelector("#highRisk").classList.toggle("hidden",e.target.value!=="alto");
  document.querySelectorAll("[data-help=ante]").forEach(b=>b.onclick=()=>alert("Registra lo que ocurrió inmediatamente antes utilizando hechos observables y evitando interpretar intenciones."));
  let start=0,tick=null;const disp=document.querySelector("#timerDisplay");
@@ -621,13 +626,13 @@ function quickToRecord(form){
  antecedente:arrayVal(fd,"antecedente"),antecedenteOtro:one(fd,"antecedenteOtro"),antecedenteDesc:"",conducta:arrayVal(fd,"conducta"),conductaOtro:one(fd,"conductaOtro"),conductaDesc:one(fd,"conductaDesc"),duracionValor:0,duracionUnidad:"segundos",frecuencia:1,intensidad:Number(one(fd,"intensidad")),riesgo:one(fd,"riesgo"),consecuencia:arrayVal(fd,"consecuencia"),consecuenciaOtro:one(fd,"consecuenciaOtro"),consecuenciaDesc:"",hipotesis:[],hipotesisOtro:"",apoyos:[],apoyosOtro:"",apoyoValoracion:"",proxima:[],proximaOtro:"",proximaTexto:"",inclusion:{},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),demo:false,quick:true}
 }
 function renderQuick(){
- document.querySelector("#screen-quick").innerHTML=quickTemplate();bindSpec(document.querySelector("#screen-quick"));const f=document.querySelector("#quickForm");document.querySelector("#quickChooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);
+ document.querySelector("#screen-quick").innerHTML=quickTemplate();bindSpec(document.querySelector("#screen-quick"));const f=document.querySelector("#quickForm");document.querySelector("#quickChooseCodeBtn")?.addEventListener("click",()=>openCodeManager(f.elements.codigo));attachPrivacyScanner(f);bindCollapsibleFieldsets(f);bindOtherReveal(f);ensureHypothesisOtherReveal(f);
  document.querySelector("#quickCancel").onclick=()=>{renderHome();show("home")};
  f.onsubmit=async e=>{e.preventDefault();const r=quickToRecord(f);await putRecord(r);toast("Guardado");renderList("today");show("list")};
  document.querySelector("#quickComplete").onclick=async()=>{if(!f.reportValidity())return;const r=quickToRecord(f);currentEditId=null;await renderForm(r);show("form")}
 }
 function summaryRecord(r){
- return `<div class="record" data-id="${esc(r.id)}"><div class="record-head"><div><h3>${esc(r.codigo)} ${r.demo?'<span class="badge demo">DEMO</span>':""}</h3><div class="meta">${esc(new Date(r.fechaHora).toLocaleString("es-ES"))} · ${esc(selectedFirst(r.contexto))}</div></div><span class="badge ${r.riesgo==="alto"?"high":""}">${esc(r.riesgo||"sin riesgo")}</span></div>
+ return `<div class="record ${r.id===lastSavedRecordId?"just-saved":""}" data-id="${esc(r.id)}"><div class="record-head"><div><h3>${esc(r.codigo)} ${r.demo?'<span class="badge demo">DEMO</span>':""}</h3><div class="meta">${esc(new Date(r.fechaHora).toLocaleString("es-ES"))} · ${esc(selectedFirst(r.contexto))}</div></div><span class="badge ${r.riesgo==="alto"?"high":""}">${esc(r.riesgo||"sin riesgo")}</span></div>
  <p><strong>Conducta:</strong> ${esc(selectedFirst(r.conducta))} · Intensidad ${esc(r.intensidad)}</p><p class="hint">${esc(r.conductaDesc||"")}</p>
  <label class="checkline"><input type="checkbox" class="select-record" value="${esc(r.id)}"> Seleccionar</label>
  <div class="actions"><button class="small" data-act="view">Ver</button><button class="small secondary" data-act="edit">Editar</button><button class="small secondary" data-act="dup">Duplicar</button><button class="small danger" data-act="delete">Eliminar</button><button class="small secondary" data-act="export">Exportar</button></div></div>`;

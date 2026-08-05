@@ -1449,3 +1449,27 @@ button,.chip,.bottom-nav button{min-height:44px}
 .demo-btn,.demo-delete{min-height:38px!important;padding:.4rem .65rem!important;border-radius:14px!important;font-size:.8rem!important}
 .code-choice{cursor:pointer}
 .code-choice input[type=radio]{cursor:pointer}
+
+/* V20k — hipótesis editable */
+[data-section="hipotesis"] .collapsible-body{
+  position:relative!important;
+  z-index:1!important;
+}
+[data-section="hipotesis"] .chips,
+[data-section="hipotesis"] input,
+[data-section="hipotesis"] textarea,
+[data-section="hipotesis"] label{
+  pointer-events:auto!important;
+}
+[data-section="hipotesis"] .chips{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:.45rem!important;
+}
+
+/* V20l — confirmación visual de guardado */
+.record.just-saved{
+  border-color:#4c9a78!important;
+  box-shadow:0 0 0 4px rgba(76,154,120,.14),0 10px 28px rgba(48,107,84,.12)!important;
+  background:#f3faf7!important;
+}

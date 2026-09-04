@@ -25,6 +25,10 @@ personales.
 El autor no recibe, supervisa ni controla los registros almacenados localmente
 y no determina la finalidad para la que cada usuario o entidad los trata.
 
+Estas condiciones no constituyen una autorización institucional en ninguna
+comunidad autónoma. La persona usuaria debe comprobar las instrucciones de su
+Administración educativa antes de utilizar datos reales.
+
 En centros públicos de la Comunidad de Madrid no se autoriza mediante estas
 condiciones el uso con datos reales para valoración de conductas, procedimientos
 disciplinarios u otros trámites confidenciales corporativos. Deben seguirse las

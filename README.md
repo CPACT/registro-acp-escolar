@@ -41,7 +41,14 @@ psicológica, médica, psiquiátrica, pedagógica o profesional; tampoco sustitu
 los protocolos de seguridad, protección o emergencia ni adopta decisiones
 automatizadas.
 
-**Centros públicos de la Comunidad de Madrid:** las instrucciones publicadas
+**Uso institucional en España:** antes de utilizar datos reales, cada centro o
+profesional debe comprobar las instrucciones de su Administración educativa y
+comunidad autónoma, además de aplicar el RGPD y la normativa española. La
+aplicación no ha sido homologada, certificada ni autorizada para uso
+institucional por la AEPD, el Ministerio de Educación, las consejerías
+autonómicas ni ningún centro educativo.
+
+**Condición específica de Madrid:** las instrucciones publicadas
 por su Delegación de Protección de Datos reservan la valoración de conductas,
 los procedimientos disciplinarios y otros trámites confidenciales corporativos
 a herramientas corporativas. Esta aplicación no debe utilizarse con datos

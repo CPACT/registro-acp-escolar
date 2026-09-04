@@ -55,7 +55,15 @@ se guardan o comparten fuera de ella, su custodia, transferencia y eliminación
 dependen de la persona usuaria, del dispositivo, del servicio elegido y de los
 procedimientos del centro.
 
-## Condición específica de la Comunidad de Madrid
+## Uso institucional en España
+
+Antes de utilizar datos reales, la persona usuaria debe comprobar las
+instrucciones de su centro, entidad titular, Administración educativa y
+comunidad autónoma. La aplicación no ha sido homologada, certificada ni
+autorizada para uso institucional por la AEPD, el Ministerio de Educación, las
+consejerías autonómicas ni ningún centro educativo.
+
+### Condición específica de la Comunidad de Madrid
 
 En centros educativos públicos de la Comunidad de Madrid, la aplicación no
 debe utilizarse con datos reales para valoración de conductas, procedimientos

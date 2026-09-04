@@ -54,7 +54,15 @@ adicional disponible para la persona usuaria o el centro.
 - No se ha realizado una auditoría independiente, prueba de penetración ni
   certificación conforme al Esquema Nacional de Seguridad.
 
-## Condición de uso educativo en Madrid
+## Uso educativo en España
+
+Los requisitos organizativos y las herramientas autorizadas pueden variar
+entre administraciones educativas. Antes de usar datos reales deben comprobarse
+las instrucciones del centro, la entidad titular y la comunidad autónoma
+competente. Esta revisión técnica no constituye homologación, certificación ni
+autorización institucional.
+
+### Condición específica de Madrid
 
 La Delegación de Protección de Datos de la Consejería de Educación indica que
 los centros públicos deben emplear herramientas corporativas y que no se

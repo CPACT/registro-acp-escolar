@@ -1543,6 +1543,19 @@ button,.chip,.bottom-nav button{min-height:44px}
 #statsCodePicker.student-picker{min-height:310px}
 
 /* V21e — selección compacta de registros para exportar */
+.record-selection-bar{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.65rem;align-items:center;
+  margin:.7rem 0;padding:.7rem;border:1px solid var(--border);border-radius:18px;background:#f7faf9
+}
+.record-selection-bar .checkline{margin:0}
+.record-selection-bar>span{color:var(--muted);font-size:.82rem}
+.record-selection-bar button{min-height:42px}
+.record-selected{background:#eef7f3!important;border-color:#75a995!important;box-shadow:0 0 0 2px rgba(39,111,87,.1)}
+.record-select-line{width:max-content;max-width:100%;margin:.35rem 0 .55rem}
+@media(max-width:700px){
+  .record-selection-bar{grid-template-columns:1fr}
+  .record-selection-bar button{width:100%}
+}
 .export-record-toolbar{display:flex;justify-content:space-between;align-items:end;gap:.7rem;flex-wrap:wrap;margin:.6rem 0}
 .export-all{min-height:44px;padding:.55rem .75rem;border:1px solid var(--border);border-radius:16px;background:#f7faf9}
 .export-record-picker-shell{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:.5rem;align-items:stretch}

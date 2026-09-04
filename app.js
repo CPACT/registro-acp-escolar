@@ -198,6 +198,15 @@ async function addDemoRecords(){
 
 async function allRecords(){return new Promise((res,rej)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>res(r.result.sort((a,b)=>(b.fechaHora||"").localeCompare(a.fechaHora||"")));r.onerror=()=>rej(r.error)})}
 async function deleteRecord(id){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+async function deleteRecords(ids){
+ const unique=[...new Set(ids)].filter(Boolean);
+ if(!unique.length)return;
+ return new Promise((res,rej)=>{
+  const tx=db.transaction(STORE,"readwrite"),store=tx.objectStore(STORE);
+  unique.forEach(id=>store.delete(id));
+  tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)
+ })
+}
 async function clearRecords(){return new Promise((res,rej)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).clear();tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 
 
@@ -771,10 +780,11 @@ function renderQuick(){
  };
  document.querySelector("#quickComplete").onclick=async()=>{if(!validateRequiredRecordFields(f))return;await renderForm(quickToRecord(f));show("form")};
 }
-function summaryRecord(r){
- return `<div class="record ${r.id===lastSavedRecordId?"just-saved":""}" data-id="${esc(r.id)}"><div class="record-head"><div><h3>${esc(r.codigo)} ${r.demo?'<span class="badge demo">DEMO</span>':""}</h3><div class="meta">${esc(new Date(r.fechaHora).toLocaleString("es-ES"))} · ${esc(selectedFirst(r.contexto))}</div></div><span class="badge ${r.riesgo==="alto"?"high":""}">${esc(r.riesgo||"sin riesgo")}</span></div>
+function summaryRecord(r,selectedIds=new Set()){
+ const selected=selectedIds.has(r.id);
+ return `<div class="record ${r.id===lastSavedRecordId?"just-saved":""} ${selected?"record-selected":""}" data-id="${esc(r.id)}"><div class="record-head"><div><h3>${esc(r.codigo)} ${r.demo?'<span class="badge demo">DEMO</span>':""}</h3><div class="meta">${esc(new Date(r.fechaHora).toLocaleString("es-ES"))} · ${esc(selectedFirst(r.contexto))}</div></div><span class="badge ${r.riesgo==="alto"?"high":""}">${esc(r.riesgo||"sin riesgo")}</span></div>
  <p><strong>Conducta:</strong> ${esc(selectedFirst(r.conducta))} · Intensidad ${esc(r.intensidad)}</p><p class="hint">${esc(r.conductaDesc||"")}</p>
- <label class="checkline"><input type="checkbox" class="select-record" value="${esc(r.id)}"> Seleccionar</label>
+ <label class="checkline record-select-line"><input type="checkbox" class="select-record" value="${esc(r.id)}" ${selected?"checked":""}> Seleccionar este registro</label>
  <div class="actions"><button class="small" data-act="view">Ver</button><button class="small secondary" data-act="edit">Editar</button><button class="small secondary" data-act="dup">Duplicar</button><button class="small danger" data-act="delete">Eliminar</button><button class="small secondary" data-act="export">Exportar</button></div></div>`;
 }
 async function renderList(mode="all"){
@@ -783,6 +793,7 @@ async function renderList(mode="all"){
  const codes=[...new Set(all.map(r=>r.codigo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
  const base=mode==="today"?all.filter(r=>dateOnly(r.fechaHora)===today):all;
  let visible=[...base];
+ let selectedIds=new Set();
 
  document.querySelector("#screen-list").innerHTML=`<div class="card screen-card">${screenCloseButton()}
    <h2>Registros</h2>
@@ -795,8 +806,13 @@ async function renderList(mode="all"){
      <div class="actions compact-actions"><button id="applyFilters" class="secondary" type="button">Aplicar</button><button id="clearFilters" class="ghost" type="button">Limpiar</button></div>
    </div></details>
    <details class="filter-panel"><summary>Datos de prueba</summary><div class="records-tools-row"><button id="addDemoBtn" class="secondary demo-btn" type="button">＋ Probar con datos ficticios</button><button id="deleteDemoBtn" class="ghost demo-delete" type="button">Borrar pruebas</button><span>Alumno ficticio · solo para probar</span></div></details>
+   <div class="record-selection-bar" aria-label="Acciones para los registros seleccionados">
+     <label class="checkline"><input id="selectAllVisible" type="checkbox"> Seleccionar todos los visibles</label>
+     <span id="recordSelectionSummary" aria-live="polite">Ningún registro seleccionado</span>
+     <button id="deleteSelectedRecords" class="danger" type="button" disabled>Eliminar seleccionados</button>
+   </div>
    <div class="records-export-bar"><span><strong>Exportar lo visible</strong></span><div class="records-export-actions"><button id="recordsPdfBtn">PDF</button><button id="recordsDocxBtn">DOCX</button><button id="recordsXlsxBtn">XLSX</button><button id="recordsCsvBtn">CSV</button></div></div>
-   <div id="recordList">${visible.length?visible.map(summaryRecord).join(""):'<div class="card"><p>No hay registros.</p></div>'}</div>
+   <div id="recordList">${visible.length?visible.map(r=>summaryRecord(r,selectedIds)).join(""):'<div class="card"><p>No hay registros.</p></div>'}</div>
  </div>`;
 
  const bindActions=()=>document.querySelectorAll("#recordList .record [data-act]").forEach(b=>b.onclick=async()=>{
@@ -807,13 +823,35 @@ async function renderList(mode="all"){
    if(act==="delete"&&confirm("¿Eliminar este registro?")){await deleteRecord(id);toast("Registro eliminado");renderList("all")}
    if(act==="export"){selectedExportIds=[id];await renderReport();show("report")}
  });
- const draw=()=>{document.querySelector("#recordList").innerHTML=visible.length?visible.map(summaryRecord).join(""):'<div class="card"><p>No hay resultados.</p></div>';bindActions()};
+ const updateSelectionUi=()=>{
+  const visibleIds=new Set(visible.map(r=>r.id));
+  selectedIds=new Set([...selectedIds].filter(id=>visibleIds.has(id)));
+  const n=selectedIds.size,total=visible.length,allVisible=total>0&&n===total;
+  const allBox=document.querySelector("#selectAllVisible"),summary=document.querySelector("#recordSelectionSummary"),del=document.querySelector("#deleteSelectedRecords");
+  if(allBox){allBox.checked=allVisible;allBox.indeterminate=n>0&&!allVisible;allBox.disabled=!total}
+  if(summary)summary.textContent=n?`${n} registro(s) seleccionado(s)`:"Ningún registro seleccionado";
+  if(del){del.disabled=!n;del.textContent=n?`Eliminar seleccionados (${n})`:"Eliminar seleccionados"}
+ };
+ const bindSelection=()=>document.querySelectorAll("#recordList .select-record").forEach(ch=>ch.onchange=()=>{
+  if(ch.checked)selectedIds.add(ch.value);else selectedIds.delete(ch.value);
+  ch.closest(".record")?.classList.toggle("record-selected",ch.checked);updateSelectionUi()
+ });
+ const draw=()=>{document.querySelector("#recordList").innerHTML=visible.length?visible.map(r=>summaryRecord(r,selectedIds)).join(""):'<div class="card"><p>No hay resultados.</p></div>';bindActions();bindSelection();updateSelectionUi()};
  document.querySelector("#applyFilters").onclick=()=>{
    const code=document.querySelector("#fCode").value,ctx=document.querySelector("#fContext").value,risk=document.querySelector("#fRisk").value,bh=document.querySelector("#fBehavior").value,fr=document.querySelector("#fFrom").value,to=document.querySelector("#fTo").value;
    visible=base.filter(r=>(!code||r.codigo===code)&&(!ctx||r.contexto.includes(ctx))&&(!risk||r.riesgo===risk)&&(!bh||r.conducta.includes(bh))&&(!fr||dateOnly(r.fechaHora)>=fr)&&(!to||dateOnly(r.fechaHora)<=to));draw();
  };
  document.querySelector("#clearFilters").onclick=()=>{["fCode","fContext","fRisk","fBehavior","fFrom","fTo"].forEach(id=>document.querySelector(`#${id}`).value="");visible=[...base];draw()};
  bindActions();
+ bindSelection();
+ updateSelectionUi();
+ document.querySelector("#selectAllVisible").onchange=e=>{selectedIds=e.target.checked?new Set(visible.map(r=>r.id)):new Set();draw()};
+ document.querySelector("#deleteSelectedRecords").onclick=async()=>{
+  const ids=[...selectedIds];if(!ids.length)return;
+  if(!confirm(`¿Eliminar definitivamente ${ids.length} registro(s) seleccionado(s)? Esta acción no puede deshacerse.`))return;
+  try{await deleteRecords(ids);toast(`${ids.length} registro(s) eliminado(s)`);await renderList(mode)}
+  catch(err){console.error("Error al eliminar registros seleccionados:",err);toast("No se pudieron eliminar los registros")}
+ };
  document.querySelector("#addDemoBtn").onclick=async()=>{if(!confirm("Se crearán registros ficticios para probar la aplicación. No corresponden a alumnado real."))return;const r=await addDemoRecords();toast(`Datos ficticios añadidos: ${r.code}`);await renderList("all")};
  document.querySelector("#deleteDemoBtn").onclick=async()=>{if(!confirm("¿Borrar todos los datos ficticios?"))return;const n=await deleteDemoRecords();toast(`${n} registro(s) ficticios eliminados`);await renderList("all")};
  const exportVisible=async fn=>{if(!visible.length)return toast("No hay registros visibles");await reviewGate(async()=>fn(visible))};
